@@ -11,7 +11,9 @@
 [12/03/2025 14:19] this error message is very confusing 'Due to: DaftError::ValueError Cannot run UDF with 0 expression arguments'
 [12/03/2025 14:21] turns out the input must be an expression and passing in a string doesn't work. we should give the user a suggestion in that case
 [12/03/2025 14:23] this again 'TypeError: 'Series' object is not iterable'
+[12/03/2025 14:53] fuck i hate doing to_pylist for all my udf inputs
 [12/03/2025 14:56] where showing IDE completion for df.where we should put the SQL syntax higher up
+[12/03/2025 15:06] with column struct.* to expand all while keeping other columns
 [12/03/2025 15:08] sammy: we should show some kind of progress bar even if we're on the first morsel. Think slow udf, right now it just shows nothing
 [12/03/2025 15:11] sammy: there should be a good way to expand out a single column when doing df show; i have to do to_pylist to see the full content rn
 [12/03/2025 15:14] sammy: when using a UDF in local mode, it's unclear that its running with threads - even if you are using batch_size. We should print some kind of warning to let the user know what is going on
