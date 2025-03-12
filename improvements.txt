@@ -7,3 +7,4 @@
 [12/03/2025 11:31] rampup on morsel size
 [12/03/2025 13:14] set with concurrency on udf itse;f
 [12/03/2025 13:14] set morsel size for normal udf = batch size
+[12/03/2025 14:10] i would like to concat strings in an agg and specify the delimiter between rows like a newline
