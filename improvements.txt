@@ -12,3 +12,4 @@
 [12/03/2025 14:21] turns out the input must be an expression and passing in a string doesn't work. we should give the user a suggestion in that case
 [12/03/2025 14:23] this again 'TypeError: 'Series' object is not iterable'
 [12/03/2025 14:56] where showing IDE completion for df.where we should put the SQL syntax higher up
+[12/03/2025 15:08] sammy: we should show some kind of progress bar even if we're on the first morsel. Think slow udf, right now it just shows nothing

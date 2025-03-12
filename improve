@@ -15,5 +15,8 @@ date=$(date "+%d/%m/%Y %H:%M")
 # Create improvements.txt if it doesn't exist
 touch improvements.txt
 
-# Add the new improvement with timestamp
-echo "[$date] $message" >> improvements.txt
+# Get current user name
+user=$(whoami)
+
+# Add the new improvement with timestamp and username
+echo "[$date] $user: $message" >> improvements.txt
