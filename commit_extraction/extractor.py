@@ -24,7 +24,7 @@ def extract_commits_to_dataframe(remote_url):
     Extract commit information from a local Git repository and return it as a pandas DataFrame.
 
     :param repo_path: Local path to the repository (string).
-    :return: pandas DataFrame containing the commits.
+    :return: struct of commit metadata
     """
 
     commits_list = []
