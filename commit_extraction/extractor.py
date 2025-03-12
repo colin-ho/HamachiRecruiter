@@ -42,7 +42,7 @@ def extract_commits_to_dataframe(remote_url):
                 repo_name = parts[1].replace('.git', '')
 
 
-            for commit,i in zip(repo.iter_commits(), range(10)):
+            for commit in repo.iter_commits():
                 # Convert committed_date (Unix timestamp) to datetime
                 commit_info = {
                     'repo_name': repo_name,
