@@ -1,0 +1,4 @@
+[12/03/2025 10:24] it would be nice to have multiple returns out of a UDF without having to use a struct type or returning a pandas / daft table would also be dope.
+[12/03/2025 10:40] IDE highlighting is not great when hovering over a UDF in daft. I would like to see the expected inputs that it expects.
+[12/03/2025 10:42] `TypeError: 'Series' object is not iterable`
+[12/03/2025 10:48] I would like to explode the columns in a struct so it is flat but 'commit.*' does not work

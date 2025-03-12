@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Check if a message was provided
+if [ $# -eq 0 ]; then
+    echo "Usage: ./improve \"Your improvement suggestion\""
+    exit 1
+fi
+
+# Get the message from command line arguments
+message="$*"
+
+# Get current date in required format
+date=$(date "+%d/%m/%Y %H:%M")
+
+# Create improvements.txt if it doesn't exist
+touch improvements.txt
+
+# Add the new improvement with timestamp
+echo "[$date] $message" >> improvements.txt
