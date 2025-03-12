@@ -40,7 +40,8 @@ def parse_logs(logs):
                 current_commit['author_email'] = line.strip()
             # Fourth line is date
             elif 'date' not in current_commit:
-                current_commit['date'] = line.strip()
+                dt = datetime.strptime(line.strip(), "%Y-%m-%d %H:%M:%S %z")
+                current_commit['date'] = dt
             # Message comes next until we hit file stats
             elif 'message' not in current_commit:
                 message = [line]
@@ -154,5 +155,5 @@ def extract_commits_to_dataframe(remote_url):
 if __name__ == "__main__":
     df = daft.from_pydict(dict(remote_url=["https://github.com/Eventual-Inc/Daft.git"]))
     df = df.select(extract_commits_to_dataframe(df["remote_url"]).alias("commit"))
-    df = df.select(daft.col("commit").struct.get("*"))
+    df = df.select(daft.col("commit").struct.get("*")).sort('lines_added', desc=True)
     df.show()
