@@ -2,3 +2,8 @@
 [12/03/2025 10:40] IDE highlighting is not great when hovering over a UDF in daft. I would like to see the expected inputs that it expects.
 [12/03/2025 10:42] `TypeError: 'Series' object is not iterable`
 [12/03/2025 10:48] I would like to explode the columns in a struct so it is flat but 'commit.*' does not work
+[12/03/2025 11:29] yielding generator from udf that processes data that explodes in volume
+[12/03/2025 11:30] udf smarter morsel sizing for udfs that process lots of work per row
+[12/03/2025 11:31] rampup on morsel size
+[12/03/2025 13:14] set with concurrency on udf itse;f
+[12/03/2025 13:14] set morsel size for normal udf = batch size

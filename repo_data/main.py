@@ -1,3 +1,5 @@
+import argparse
+from typing import Literal
 from dotenv import load_dotenv
 import os
 import daft
@@ -13,19 +15,37 @@ auth = Auth.Token(GITHUB_TOKEN)
 github = Github(auth=auth)
 
 @daft.udf(return_dtype=daft.DataType.struct({"name": daft.DataType.string(), "url": daft.DataType.string()}), batch_size=1)
-def search_for_repos(query, sort, order, limit):
-    query, sort, order, limit = query.to_pylist()[0], sort.to_pylist()[0], order.to_pylist()[0], limit.to_pylist()[0]
+def search_for_repos(query: daft.Series, sort: Literal["stars", "forks", "updated"], order: Literal["asc", "desc"], limit: int):
+    [query] = query.to_pylist()
     repos = github.search_repositories(query=query, sort=sort, order=order)
     res = []
-    for repo in repos[:limit]:
+    for i, repo in enumerate(repos[:limit]):
         res.append({"name": repo.name, "url": repo.clone_url})
     return res
 
-df = daft.from_pydict({"query": ["language:rust"], "sort": ["stars"], "order": ["desc"], "limit": [10]})
+if __name__ == "__main__":
+    # todo add arg for query, sort, order, limit
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--query", type=str, default="language:rust")
+    parser.add_argument("--sort", type=str, default="stars")
+    parser.add_argument("--order", type=str, default="desc")
+    parser.add_argument("--limit", type=int, default=10)
+    parser.add_argument("--write_to_file", type=bool, default=False)
+    args = parser.parse_args()
 
-df = df.with_column(
-    "repo_data",
-    search_for_repos(df["query"], df["sort"], df["order"], df["limit"])
-)
+    df = daft.from_pydict({"query": [args.query]})
 
-df.show()
+    repo_searcher = search_for_repos.with_concurrency(10)
+    df = df.with_column(
+        "repo_data",
+        repo_searcher(df["query"], args.sort, args.order, args.limit)
+    )
+
+    repo_data = df.select(df["repo_data"].struct.get("*"))
+
+    repo_data.show()
+
+    if args.write_to_file:
+        files = repo_data.write_parquet("repo_data_files")
+        print(f"Wrote files to repo_data_files")
+        print(files)

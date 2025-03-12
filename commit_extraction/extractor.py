@@ -114,7 +114,8 @@ def parse_logs(logs):
             lines_deleted=daft.DataType.uint64(),
             lines_modified=daft.DataType.uint64()
         )
-    )
+    ),
+    batch_size=1
 )
 def extract_commits_to_dataframe(remote_url):
     """
@@ -129,7 +130,7 @@ def extract_commits_to_dataframe(remote_url):
     # Create a temporary directory that will be automatically cleaned up
     for url in remote_url.to_pylist():
         with tempfile.TemporaryDirectory() as temp_dir:
-            repo = Repo.clone_from(url, to_path=temp_dir, multi_options=['--no-checkout', '--single-branch', '--branch main'])
+            repo = Repo.clone_from(url, to_path=temp_dir, multi_options=['--no-checkout'])
             remote_url = repo.remotes.origin.url
             # Extract owner and repo name from remote URL
             # Handle both HTTPS and SSH URLs
@@ -153,7 +154,10 @@ def extract_commits_to_dataframe(remote_url):
 
 
 if __name__ == "__main__":
-    df = daft.from_pydict(dict(remote_url=["https://github.com/Eventual-Inc/Daft.git"]))
-    df = df.select(extract_commits_to_dataframe(df["remote_url"]).alias("commit"))
+    df = daft.read_parquet("repo_data_files")
+    extractor = extract_commits_to_dataframe.with_concurrency(10)
+    df = df.select(extractor(df["url"]).alias("commit"))
     df = df.select(daft.col("commit").struct.get("*")).sort('lines_added', desc=True)
-    df.show()
+    files = df.write_parquet("commit_data_files")
+    print(f"Wrote files to commit_data_files")
+    print(files)
