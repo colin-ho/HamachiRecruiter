@@ -11,48 +11,23 @@ def parse_logs(logs):
     current_commit = None
     files = []
     iterator = iter(logs.split('\n'))
-    while True:
-        line = next(iterator)
-        if len(commits) > 10:
-            break
+    is_active = True
+    at_commit_end = False
+    while is_active:
+        try:
+            line = next(iterator)
+        except StopIteration:
+            is_active = False
+            continue
         if line == '---COMMIT START---':
+            at_commit_end = False
             current_commit = {}
             files = []
             continue
-        elif line == '---COMMIT END---':
-            # Calculate file stats which is after commit
-            lines_added = 0
-            lines_deleted = 0
-            lines_modified = 0
-            files_changed = []
-            while True:
-                line = next(iterator)
-                if line == "":
-                    break
-                parts = line.strip().split('\t')
-                if len(parts) >= 2:
-                    files.append(parts)
-
-
-                for file_stats in files:
-                    if len(file_stats) >= 3:
-                        try:
-                            added = int(file_stats[0]) if file_stats[0] != '-' else 0
-                            deleted = int(file_stats[1]) if file_stats[1] != '-' else 0
-                            lines_added += added
-                            lines_deleted += deleted
-                            lines_modified += added + deleted
-                        except ValueError:
-                            continue
-                        files_changed.append(file_stats[2])
-            current_commit['lines_added'] = lines_added
-            current_commit['lines_deleted'] = lines_deleted 
-            current_commit['lines_modified'] = lines_modified
-            current_commit['files_changed'] = files_changed
-            
-            commits.append(current_commit)
+        elif line == "---COMMIT END---":          
+            at_commit_end = True
             continue
-            
+
         if current_commit is not None:
             # First line after START is commit hash
             if 'hash' not in current_commit:
@@ -68,9 +43,57 @@ def parse_logs(logs):
                 current_commit['date'] = line.strip()
             # Message comes next until we hit file stats
             elif 'message' not in current_commit:
-                if line.strip() and len(line.split('\t')) < 3:
-                    current_commit['message'] = line.strip()
-    pprint(commits)               
+                message = [line]
+                while True:
+                    try:
+                        line = next(iterator)
+                    except StopIteration:
+                        is_active = False
+                        break
+                    if line == "---COMMIT END---":
+                        at_commit_end = True
+                        break
+                    message.append(line)
+                current_commit['message'] = "".join(message[0] + "\n" + "\n".join(message[1:]) if len(message) > 1 else message[0])
+                
+        if at_commit_end:
+            # Calculate file stats which is after commit
+            lines_added = 0
+            lines_deleted = 0
+            lines_modified = 0
+            files_changed = []
+            while True:
+                try:
+                    line = next(iterator)
+                except StopIteration:
+                    is_active = False
+                    break
+                if line == "":
+                    break
+                parts = line.strip().split('\t')
+                if len(parts) >= 2:
+                    files.append(parts)
+
+            for file_stats in files:
+                if len(file_stats) >= 3:
+                    try:
+                        added = int(file_stats[0]) if file_stats[0] != '-' else 0
+                        deleted = int(file_stats[1]) if file_stats[1] != '-' else 0
+                        lines_added += added
+                        lines_deleted += deleted
+                        lines_modified += added + deleted
+                    except ValueError:
+                        continue
+                    files_changed.append(file_stats[2])
+            current_commit['lines_added'] = lines_added
+            current_commit['lines_deleted'] = lines_deleted 
+            current_commit['lines_modified'] = lines_modified
+            current_commit['files_changed'] = files_changed
+            
+            commits.append(current_commit)
+            at_commit_end = False
+            continue
+
     return commits
 
     
@@ -105,7 +128,7 @@ def extract_commits_to_dataframe(remote_url):
     # Create a temporary directory that will be automatically cleaned up
     for url in remote_url.to_pylist():
         with tempfile.TemporaryDirectory() as temp_dir:
-            repo = Repo.clone_from(url, to_path=temp_dir)
+            repo = Repo.clone_from(url, to_path=temp_dir, multi_options=['--no-checkout', '--single-branch', '--branch main'])
             remote_url = repo.remotes.origin.url
             # Extract owner and repo name from remote URL
             # Handle both HTTPS and SSH URLs
