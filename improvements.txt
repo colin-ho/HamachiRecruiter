@@ -13,3 +13,4 @@
 [12/03/2025 14:23] this again 'TypeError: 'Series' object is not iterable'
 [12/03/2025 14:56] where showing IDE completion for df.where we should put the SQL syntax higher up
 [12/03/2025 15:08] sammy: we should show some kind of progress bar even if we're on the first morsel. Think slow udf, right now it just shows nothing
+[12/03/2025 15:11] sammy: there should be a good way to expand out a single column when doing df show; i have to do to_pylist to see the full content rn
