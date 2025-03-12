@@ -1,11 +1,10 @@
 import daft
 
-
-from typing import Literal
-
 import instructor
 from pydantic import BaseModel, Field
-from openai import OpenAI
+
+from anthropic import AnthropicBedrock
+
 
 class CommitQuality(BaseModel):
     impact_to_project: int = Field(ge=1, le=10, description="Score from 1-10 indicating impact to project where 10 is someone who the project revolves around and 1 is tiny contributions")
@@ -21,10 +20,12 @@ class CommitQuality(BaseModel):
             reason=daft.DataType.string(),
         )
     ),
+    batch_size=16
 )
 def analyze_commit_message(repo_name, commit_count, lines_added, lines_deleted, lines_modified, files_changed, message):
 
-    client = instructor.from_openai(OpenAI(max_retries=10))
+    client = instructor.from_anthropic(AnthropicBedrock(aws_region="us-west-2", max_retries=10))
+
     results = []
     for repo, c, la, ld, lm, f, msg in zip(repo_name.to_pylist(), commit_count.to_pylist(), lines_added.to_pylist(), lines_deleted.to_pylist(), lines_modified.to_pylist(), files_changed.to_pylist(), message.to_pylist()):
         prompt = f"""You are an expert at analyzing GitHub contributions and determining developer impact and technical ability.
@@ -50,15 +51,21 @@ def analyze_commit_message(repo_name, commit_count, lines_added, lines_deleted, 
         
         Based on these commit messages:
         {msg}
-        
+
+        Keep your reason explanation very brief - maximum 2 sentences.
         """
-        result = client.chat.completions.create(
-            model="gpt-4o-mini",
+
+
+
+        result = client.messages.create(
+            model="anthropic.claude-3-5-haiku-20241022-v1:0",
             response_model=CommitQuality,
             messages=[
                 {"role": "user", "content": prompt}
-            ]
+            ],
+            max_tokens=128
         )
+
         results.append(result.model_dump())
     return results
 
@@ -77,13 +84,13 @@ if __name__ == "__main__":
     ])
     # we only care about folks who have contributed at least 100 lines of code and 3 commits
     df = df.where("lines_modified > 100 AND commit_count >= 3")
-    df = df.limit(10)
+    df = df.limit(100)
 
-    df = df.with_column('commit_analysis', analyze_commit_message(df['repo_name'], df['commit_count'], df['lines_added'], df['lines_deleted'], df['lines_modified'], df['files_changed'], df['message']))
+    df = df.with_column('commit_analysis', analyze_commit_message.with_concurrency(10)(df['repo_name'], df['commit_count'], df['lines_added'], df['lines_deleted'], df['lines_modified'], df['files_changed'], df['message']))
     df = df.with_columns({
         "impact_to_project":  df['commit_analysis'].struct.get('impact_to_project'),
         "technical_ability":  df['commit_analysis'].struct.get('technical_ability'),
         "reason":  df['commit_analysis'].struct.get('reason'),
     })
     df = df.exclude('commit_analysis')
-    df.write_csv("analyzed_data.csv")
+    df.write_parquet("analyzed_data2/")

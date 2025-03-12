@@ -5,9 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "anthropic[bedrock]>=0.49.0",
+    "boto3>=1.37.11",
     "daft>=0.4.7",
     "gitpython>=3.1.44",
-    "instructor>=1.7.4",
+    "instructor[bedrock]>=1.7.4",
     "openai>=1.66.3",
     "pydantic>=2.10.6",
     "pygithub>=2.6.1",
