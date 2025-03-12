@@ -14,3 +14,6 @@
 [12/03/2025 14:56] where showing IDE completion for df.where we should put the SQL syntax higher up
 [12/03/2025 15:08] sammy: we should show some kind of progress bar even if we're on the first morsel. Think slow udf, right now it just shows nothing
 [12/03/2025 15:11] sammy: there should be a good way to expand out a single column when doing df show; i have to do to_pylist to see the full content rn
+[12/03/2025 15:14] sammy: when using a UDF in local mode, it's unclear that its running with threads - even if you are using batch_size. We should print some kind of warning to let the user know what is going on
+[12/03/2025 15:15] sammy: when I use udf.with_concurrency, I dont want to set the number of workers for local. I want it just to be auto
+[12/03/2025 15:17] sammy: when using local engine with with_concurrency and there is an error in the udf (like a rate limit) you get the following error BrokenPipeError: [Errno 32] Broken pipe

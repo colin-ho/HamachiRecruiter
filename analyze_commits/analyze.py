@@ -20,11 +20,11 @@ class CommitQuality(BaseModel):
             technical_ability=daft.DataType.int64(),
             reason=daft.DataType.string(),
         )
-    )
+    ),
 )
 def analyze_commit_message(repo_name, commit_count, lines_added, lines_deleted, lines_modified, files_changed, message):
 
-    client = instructor.from_openai(OpenAI())
+    client = instructor.from_openai(OpenAI(max_retries=10))
     results = []
     for repo, c, la, ld, lm, f, msg in zip(repo_name.to_pylist(), commit_count.to_pylist(), lines_added.to_pylist(), lines_deleted.to_pylist(), lines_modified.to_pylist(), files_changed.to_pylist(), message.to_pylist()):
         prompt = f"""You are an expert at analyzing GitHub contributions and determining developer impact and technical ability.
@@ -86,4 +86,4 @@ if __name__ == "__main__":
         "reason":  df['commit_analysis'].struct.get('reason'),
     })
     df = df.exclude('commit_analysis')
-    df.show()
+    df.write_csv("analyzed_data.csv")
