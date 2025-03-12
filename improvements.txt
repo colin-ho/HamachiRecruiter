@@ -11,3 +11,4 @@
 [12/03/2025 14:19] this error message is very confusing 'Due to: DaftError::ValueError Cannot run UDF with 0 expression arguments'
 [12/03/2025 14:21] turns out the input must be an expression and passing in a string doesn't work. we should give the user a suggestion in that case
 [12/03/2025 14:23] this again 'TypeError: 'Series' object is not iterable'
+[12/03/2025 14:56] where showing IDE completion for df.where we should put the SQL syntax higher up

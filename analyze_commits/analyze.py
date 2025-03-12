@@ -27,17 +27,28 @@ def analyze_commit_message(repo_name, commit_count, lines_added, lines_deleted, 
     client = instructor.from_openai(OpenAI())
     results = []
     for repo, c, la, ld, lm, f, msg in zip(repo_name.to_pylist(), commit_count.to_pylist(), lines_added.to_pylist(), lines_deleted.to_pylist(), lines_modified.to_pylist(), files_changed.to_pylist(), message.to_pylist()):
-        prompt = f"""Analyze this series of git commit messages and how impactful is this user to the project.
+        prompt = f"""You are an expert at analyzing GitHub contributions and determining developer impact and technical ability.
 
-        repo name: {repo}
-        commit count: {c}
-        total lines added: {la}
-        total lines deleted: {ld}
-        total lines modified: {lm}
-         
-        files touched: {f}
+        Analyze the following GitHub contribution data to assess:
+        1. The contributor's impact to the project (score 1-10):
+           - 10: Core maintainer/architect whose work is foundational
+           - 7-9: Major feature owner or frequent substantial contributor
+           - 4-6: Regular contributor with meaningful additions
+           - 1-3: Minor/occasional contributor
 
-        commit_messages:
+        2. Their technical ability (score 1-10):
+           - 10: Expert system architect/developer
+           - 7-9: Very strong technical skills
+           - 4-6: Competent developer
+           - 1-3: Beginning developer
+
+        Consider:
+        - Repository: {repo}
+        - Contribution volume: {c} commits
+        - Code changes: {la} lines added, {ld} lines deleted, {lm} lines modified
+        - Scope of changes: Files modified: {f}
+        
+        Based on these commit messages:
         {msg}
         
         """
@@ -64,6 +75,8 @@ if __name__ == "__main__":
         daft.col('date').min().alias('first_commit'),
         daft.col('date').max().alias('last_commit')
     ])
+    # we only care about folks who have contributed at least 100 lines of code and 3 commits
+    df = df.where("lines_modified > 100 AND commit_count >= 3")
     df = df.limit(10)
 
     df = df.with_column('commit_analysis', analyze_commit_message(df['repo_name'], df['commit_count'], df['lines_added'], df['lines_deleted'], df['lines_modified'], df['files_changed'], df['message']))
