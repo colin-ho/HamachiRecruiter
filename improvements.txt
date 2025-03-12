@@ -8,3 +8,6 @@
 [12/03/2025 13:14] set with concurrency on udf itse;f
 [12/03/2025 13:14] set morsel size for normal udf = batch size
 [12/03/2025 14:10] i would like to concat strings in an agg and specify the delimiter between rows like a newline
+[12/03/2025 14:19] this error message is very confusing 'Due to: DaftError::ValueError Cannot run UDF with 0 expression arguments'
+[12/03/2025 14:21] turns out the input must be an expression and passing in a string doesn't work. we should give the user a suggestion in that case
+[12/03/2025 14:23] this again 'TypeError: 'Series' object is not iterable'
