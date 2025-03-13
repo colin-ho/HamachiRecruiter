@@ -69,7 +69,8 @@ class QueryAnalyzer:
             result = self.sess.sql(sql_query).collect()
             return result
         except Exception as e:
-            return f"Error executing query: {str(e)}"
+            print(f"Error executing query: {str(e)}")
+            return [{"error": str(e)}]
 
     def close(self):
         del self.sess
