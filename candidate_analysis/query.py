@@ -1,13 +1,16 @@
 import daft
 import os
+from dotenv import load_dotenv
 from openai import OpenAI
 
+load_dotenv()
 
 class QueryAnalyzer:
     def __init__(self):
-        self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        key = os.environ.get("OPENAI_API_KEY")
+        self.client = OpenAI(api_key=key)
 
-        df = daft.read_parquet("data/contributors_with_languages_and_project_types")
+        df = daft.read_parquet("s3://eventual-data-test-bucket/HamachiRecruiterData/contributors_with_languages_and_project_types")
         df = df.where(~daft.col('author_email').str.contains('[bot]') & ~daft.col('author_email').str.contains('@github.com')).collect()
         
         self.sess = daft.Session()
