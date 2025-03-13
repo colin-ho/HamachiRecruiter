@@ -128,7 +128,7 @@ def parse_logs(logs):
                     current_commit["date"] = dt
                 except ValueError:
                     # Handle potential date format issues
-                    current_commit["date"] = line.strip()
+                    current_commit["date"] = None
             # Commit message
             elif "message" not in current_commit:
                 message_lines = [line]
@@ -255,7 +255,7 @@ if __name__ == "__main__":
     df = df.select(daft.col("commit").struct.get("*"))
 
     files = df.write_parquet(
-        "s3://eventual-data-test-bucket/HamachiRecruiterData/raw_commits4"
+        "s3://eventual-data-test-bucket/HamachiRecruiterData/raw_commits"
     )
     print(f"Wrote files to commit_data_files")
     print(files)
