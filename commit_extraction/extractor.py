@@ -1,10 +1,7 @@
-# import pandas as pd
 from git import Repo
-from datetime import datetime, timezone
+from datetime import datetime
 import daft
 import tempfile
-
-from pprint import pprint
 
 
 def parse_logs(logs):
@@ -96,6 +93,15 @@ def parse_logs(logs):
             current_commit["lines_modified"] = lines_modified
             current_commit["files_changed"] = files_changed
 
+            # Replace with replacement character (�) if it is a string value
+            current_commit = {
+                k: (
+                    v.encode("utf-8", "replace").decode("utf-8")
+                    if isinstance(v, str)
+                    else v
+                )
+                for k, v in current_commit.items()
+            }
             commits.append(current_commit)
             at_commit_end = False
             continue
@@ -107,6 +113,7 @@ def parse_logs(logs):
     return_dtype=daft.DataType.struct(
         dict(
             repo_name=daft.DataType.string(),
+            url=daft.DataType.string(),
             repo_owner=daft.DataType.string(),
             hash=daft.DataType.string(),
             author_name=daft.DataType.string(),
@@ -119,7 +126,6 @@ def parse_logs(logs):
             lines_modified=daft.DataType.uint64(),
         )
     ),
-    batch_size=1,
 )
 def extract_commits_to_dataframe(remote_url):
     """
@@ -130,44 +136,81 @@ def extract_commits_to_dataframe(remote_url):
     """
 
     commits_list = []
-
+    remote_urls = remote_url.to_pylist()
+    print(f"Extracting commits for {len(remote_urls)} repos")
     # Create a temporary directory that will be automatically cleaned up
-    for url in remote_url.to_pylist():
+    for url in remote_urls:
         with tempfile.TemporaryDirectory() as temp_dir:
-            repo = Repo.clone_from(
-                url, to_path=temp_dir, multi_options=["--no-checkout"]
-            )
-            remote_url = repo.remotes.origin.url
-            # Extract owner and repo name from remote URL
-            # Handle both HTTPS and SSH URLs
-            if remote_url.startswith("https://"):
-                parts = remote_url.split("/")
-                owner = parts[-2]
-                repo_name = parts[-1].replace(".git", "")
-            else:  # SSH format
-                parts = remote_url.split(":")[1].split("/")
-                owner = parts[0]
-                repo_name = parts[1].replace(".git", "")
+            try:
+                print(f"Cloning repository {url}")
+                repo = Repo.clone_from(
+                    url, to_path=temp_dir, multi_options=["--no-checkout"]
+                )
+                remote_url = repo.remotes.origin.url
+                print(f"Cloned repository {url}")
+            except Exception as e:
+                print(f"Error cloning repository {url}: {e}")
+                continue
 
-            logs = repo.git.log(
-                "--pretty=format:---COMMIT START---%n%H%n%an%n%ae%n%ai%n%B%n---COMMIT END---",
-                "--date=iso",
-                "--numstat",
-            )
+            try:
+                print(f"Extracting owner and repo name from {remote_url}")
+                # Extract owner and repo name from remote URL
+                # Handle both HTTPS and SSH URLs
+                if remote_url.startswith("https://"):
+                    parts = remote_url.split("/")
+                    owner = parts[-2]
+                    repo_name = parts[-1].replace(".git", "")
+                else:  # SSH format
+                    parts = remote_url.split(":")[1].split("/")
+                    owner = parts[0]
+                    repo_name = parts[1].replace(".git", "")
+                print(f"Extracted owner and repo name from {remote_url}")
+            except Exception as e:
+                print(f"Error extracting owner and repo name from {remote_url}: {e}")
+                continue
 
-            parsed_logs = parse_logs(logs)
-            for log in parsed_logs:
-                log["repo_name"] = repo_name
-                log["repo_owner"] = owner
-            commits_list.extend(parsed_logs)
+            try:
+                print(f"Parsing logs for {url}")
+                logs = repo.git.log(
+                    "--pretty=format:---COMMIT START---%n%H%n%an%n%ae%n%ai%n%B%n---COMMIT END---",
+                    "--date=iso",
+                    "--numstat",
+                )
+
+                parsed_logs = parse_logs(logs)
+                for log in parsed_logs:
+                    log["repo_name"] = repo_name
+                    log["repo_owner"] = owner
+                    log["url"] = url
+                commits_list.extend(parsed_logs)
+                print(f"Parsed logs for {url}")
+            except Exception as e:
+                print(f"Error parsing logs for {url}: {e}")
+                continue
+
     return commits_list
 
 
 if __name__ == "__main__":
-    df = daft.read_parquet("repo_data_files")
-    extractor = extract_commits_to_dataframe.with_concurrency(10)
+    daft.context.set_runner_ray()
+    df = (
+        daft.read_parquet(
+            "s3://eventual-data-test-bucket/HamachiRecruiterData/raw_repos"
+        )
+        .where(
+            ~daft.col("name").is_in(
+                ["chromium", "cdnjs", "leetcode", "aws-sdk-java", "languagetool"]
+            )
+        )
+        .into_partitions(1024)
+    )
+
+    extractor = extract_commits_to_dataframe
+
     df = df.select(extractor(df["url"]).alias("commit"))
-    df = df.select(daft.col("commit").struct.get("*")).sort("lines_added", desc=True)
-    files = df.write_parquet("commit_data_files")
+    df = df.select(daft.col("commit").struct.get("*"))
+    files = df.write_parquet(
+        "s3://eventual-data-test-bucket/HamachiRecruiterData/raw_commits"
+    )
     print(f"Wrote files to commit_data_files")
     print(files)

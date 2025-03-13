@@ -19,4 +19,9 @@
 [12/03/2025 15:14] sammy: when using a UDF in local mode, it's unclear that its running with threads - even if you are using batch_size. We should print some kind of warning to let the user know what is going on
 [12/03/2025 15:15] sammy: when I use udf.with_concurrency, I dont want to set the number of workers for local. I want it just to be auto
 [12/03/2025 15:17] sammy: when using local engine with with_concurrency and there is an error in the udf (like a rate limit) you get the following error BrokenPipeError: [Errno 32] Broken pipe
+[12/03/2025 16:15] colinho: show name of function in progress bar for any udf
+[12/03/2025 16:26] colinho: need better api for morsel size
+[12/03/2025 16:26] colinho: fix chrome trace dangling
+[12/03/2025 16:41] colinho: add distinct on
 [12/03/2025 18:01] sammy: we should think about how to expose async udf. when doing the llm inference this gave a massive speed up but is ugly doing an async loop inside
+[12/03/2025 22:45] colinho: make swordfish non partitioned writer faster
