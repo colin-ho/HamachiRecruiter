@@ -70,7 +70,6 @@ class SearchHandler(BaseHTTPRequestHandler):
             if "error" in results[0]:
                 raise Exception(results[0]["error"])
             
-            print(f"Results: {results}")
             # Send response
             self.send_response(200)
             self.send_header('Content-type', 'application/json')

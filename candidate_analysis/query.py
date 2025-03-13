@@ -48,7 +48,7 @@ class QueryAnalyzer:
         - when comparing dates, make sure to cast string literals to timestamps using CAST('2024-01-01' AS TIMESTAMP) format
         - use >= for "after" or "since" comparisons and <= for "before" comparisons
         - for date ranges, use BETWEEN CAST('2024-01-01' AS TIMESTAMP) AND CAST('2024-12-31' AS TIMESTAMP)
-        - unless specified otherwise, limit results to top 20 candidates ordered by technical_ability DESC, impact_to_project DESC, commit_count DESC
+        - unless specified otherwise, limit results to top 100 candidates ordered by technical_ability DESC, impact_to_project DESC, commit_count DESC
         """
 
         response = self.client.chat.completions.create(
