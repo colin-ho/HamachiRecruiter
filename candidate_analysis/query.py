@@ -37,7 +37,7 @@ class QueryAnalyzer:
         - technical_ability: float (1-10 score)
         - languages: string (multiple values separated by '|', all values are lowercase and normalized)
         - project_type: string (multiple values separated by '|', possible values are lowercase and normalized: [web_development, data_processing, dev_ops, mobile_development, machine_learning, crypto, artificial_intelligence, game_development, cloud_computing, security, developer_tools])
-        - repo: string
+        - repo: string (case sensitive, in the format of owner/repo. Note that the question may not specify the owner.
 
         Convert the following question into a SQL query:
 

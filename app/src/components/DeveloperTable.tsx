@@ -70,7 +70,7 @@ const getAbilityColor = (score: number) => {
 const getAverageTechnicalAbility = (repos: RepoDetails[]): number => {
   if (repos.length === 0) return 0;
   const sum = repos.reduce((acc, repo) => acc + repo.technical_ability, 0);
-  return sum / repos.length;
+  return parseFloat((sum / repos.length).toFixed(1));
 };
 
 // Helper to get total commit count across repos
@@ -130,17 +130,19 @@ export function DeveloperTable({ developers }: DeveloperTableProps) {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-wrap gap-1">
-                    {dev.project_type.split("|").map((type, i) => {
-                      const { bg, text } = getTagColor(type, PROJECT_TYPE_COLORS);
-                      return (
-                        <span
-                          key={i}
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${bg} ${text}`}
-                        >
-                          {type.replace(/_/g, " ")}
-                        </span>
-                      );
-                    })}
+                    {dev.project_type.split("|")
+                      .sort()
+                      .map((type, i) => {
+                        const { bg, text } = getTagColor(type, PROJECT_TYPE_COLORS);
+                        return (
+                          <span
+                            key={i}
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${bg} ${text}`}
+                          >
+                            {type.replace(/_/g, " ")}
+                          </span>
+                        );
+                      })}
                   </div>
                 </td>
                 <td className="px-6 py-4">
@@ -172,7 +174,7 @@ export function DeveloperTable({ developers }: DeveloperTableProps) {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-wrap gap-1">
-                    {dev.languages.split("|").map((lang, i) => {
+                    {dev.languages.split("|").sort().map((lang, i) => {
                       const { bg, text } = getTagColor(lang, LANGUAGE_COLORS);
                       return (
                         <span
@@ -196,7 +198,7 @@ export function DeveloperTable({ developers }: DeveloperTableProps) {
                       ></div>
                     </div>
                     <span className="ml-2 text-sm font-medium text-gray-700">
-                      {Math.round(avgTechnicalAbility)}/10
+                      {avgTechnicalAbility.toFixed(1)}/10
                     </span>
                   </div>
                   

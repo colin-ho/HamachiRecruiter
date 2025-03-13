@@ -61,7 +61,7 @@ class SearchHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
             # Parse query parameters
-            query = parse_qs(urlparse(self.path).query).get('q', [''])[0].lower()
+            query = parse_qs(urlparse(self.path).query).get('q', [''])[0]
             print(f"Query: {query}")
             
             # Filter developers based on search query

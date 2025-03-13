@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { KeyboardEvent } from 'react';
 import { Search } from 'lucide-react';
 
 interface SearchFormProps {
@@ -9,6 +9,15 @@ interface SearchFormProps {
 }
 
 export function SearchForm({ searchQuery, setSearchQuery, handleSearch, isLoading }: SearchFormProps) {
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!isLoading) {
+        handleSearch(e);
+      }
+    }
+  };
+
   return (
     <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-12">
       <div className="relative">
@@ -16,8 +25,9 @@ export function SearchForm({ searchQuery, setSearchQuery, handleSearch, isLoadin
         <textarea
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
           className="w-full pl-12 pr-32 py-4 min-h-[100px] bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none shadow-sm transition-all duration-200 hover:bg-white focus:bg-white resize-y"
-          placeholder="Search for developers..."
+          placeholder="Search for developers... (Press Enter to search, Shift+Enter for new line)"
         />
         <button
           type="submit"
