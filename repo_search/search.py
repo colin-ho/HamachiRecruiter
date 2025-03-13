@@ -21,6 +21,7 @@ github = Github(auth=auth, per_page=100)
     return_dtype=daft.DataType.struct(
         {
             "name": daft.DataType.string(),
+            "owner": daft.DataType.string(),
             "url": daft.DataType.string(),
             "description": daft.DataType.string(),
             "stars": daft.DataType.int64(),
@@ -51,6 +52,7 @@ def get_repo_data(
             {
                 # Existing fields
                 "name": repo.name,
+                "owner": repo.owner.login,
                 "url": repo.clone_url,
                 "description": repo.description,
                 "stars": repo.stargazers_count,
