@@ -67,7 +67,7 @@ class SearchHandler(BaseHTTPRequestHandler):
             # Filter developers based on search query
             results = query_analyzer.natural_language_query(query)
 
-            if "error" in results[0]:
+            if results and "error" in results[0]:
                 raise Exception(results[0]["error"])
             
             # Send response
