@@ -1,12 +1,17 @@
-import duckdb
+import daft
 import os
 from openai import OpenAI
 
 class QueryAnalyzer:
     def __init__(self):
         self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        self.conn = duckdb.connect()
-        self.conn.execute("CREATE TABLE contributions AS SELECT * FROM read_parquet('data/demo-analyzed-data-10k-v2/716ae28b-bfbb-4fcb-ba34-76daa2777df5-0.parquet')")
+
+        df = daft.read_parquet('data/demo-analyzed-data-10k-v2/716ae28b-bfbb-4fcb-ba34-76daa2777df5-0.parquet').collect()
+        self.sess = daft.Session()
+        self.sess.create_temp_table("contributions", df)
+
+        # self.conn = duckdb.connect()
+        # self.conn.execute("CREATE TABLE contributions AS SELECT * FROM read_parquet('data/demo-analyzed-data-10k-v2/716ae28b-bfbb-4fcb-ba34-76daa2777df5-0.parquet')")
 
     def natural_language_query(self, query: str) -> str:
         # First ask OpenAI to convert natural language to SQL
@@ -47,19 +52,21 @@ class QueryAnalyzer:
         print(f'SQL Query:\n{sql_query}')
         # Execute the SQL query
         try:
-            result = self.conn.execute(sql_query).fetchdf()
+            result = self.sess.sql(sql_query).collect()
             return result
         except Exception as e:
             return f"Error executing query: {str(e)}"
 
     def close(self):
-        self.conn.close()
+        del self.sess
 
 if __name__ == "__main__":
     analyzer = QueryAnalyzer()
     
     # Example usage
-    query = "Who are the top 5 contributors by technical ability and have contributed in 2024?"
+    # query = "Who are the top 10 contributors by technical ability and have contributed in 2024?"
+    query = "who are the most cracked engineers that we should hire at a series a startup in san francisco?"
+
     result = analyzer.natural_language_query(query)
     print(f"\nQuery: {query}")
     print("\nResult:")
