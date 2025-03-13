@@ -9,6 +9,7 @@ dependencies = [
     "boto3>=1.37.11",
     "daft>=0.4.7",
     "dotenv>=0.9.9",
+    "fireworks-ai>=0.15.12",
     "gitpython>=3.1.44",
     "instructor[bedrock]>=1.7.4",
     "openai>=1.66.3",

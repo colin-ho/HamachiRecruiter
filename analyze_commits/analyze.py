@@ -4,6 +4,10 @@ import instructor
 from pydantic import BaseModel, Field
 
 from anthropic import AnthropicBedrock
+from fireworks.client import Fireworks, AsyncFireworks
+import instructor
+from pydantic import BaseModel
+import os
 
 
 class CommitQuality(BaseModel):
@@ -20,14 +24,17 @@ class CommitQuality(BaseModel):
             reason=daft.DataType.string(),
         )
     ),
-    batch_size=16
 )
 def analyze_commit_message(repo_name, commit_count, lines_added, lines_deleted, lines_modified, files_changed, message):
 
-    client = instructor.from_anthropic(AnthropicBedrock(aws_region="us-west-2", max_retries=10))
+    client = AsyncFireworks(
+        api_key=os.environ.get("FIREWORKS_API_KEY"),
+        timeout=6000
+    )
+    client = instructor.from_fireworks(client)
 
     results = []
-    for repo, c, la, ld, lm, f, msg in zip(repo_name.to_pylist(), commit_count.to_pylist(), lines_added.to_pylist(), lines_deleted.to_pylist(), lines_modified.to_pylist(), files_changed.to_pylist(), message.to_pylist()):
+    async def analyze_single_commit(client, repo, c, la, ld, lm, f, msg):
         prompt = f"""You are an expert at analyzing GitHub contributions and determining developer impact and technical ability.
 
         Analyze the following GitHub contribution data to assess:
@@ -52,21 +59,48 @@ def analyze_commit_message(repo_name, commit_count, lines_added, lines_deleted, 
         Based on these commit messages:
         {msg}
 
-        Keep your reason explanation very brief - maximum 2 sentences.
+        Keep your reason explanation brief - maximum 4 sentences.
         """
 
-
-
-        result = client.messages.create(
-            model="anthropic.claude-3-5-haiku-20241022-v1:0",
+        result = await client.chat.completions.create(
+            model="accounts/fireworks/models/llama-v3p2-3b-instruct#accounts/sammy-b656e2/deployments/908139cd",
+            # model="accounts/fireworks/models/llama-v3p2-3b-instruct",
             response_model=CommitQuality,
             messages=[
                 {"role": "user", "content": prompt}
             ],
             max_tokens=128
+            
         )
+        return result.model_dump()
 
-        results.append(result.model_dump())
+    # Limit concurrent requests to 5 (or adjust as needed)
+    import asyncio
+    semaphore = asyncio.Semaphore(64)
+    
+    async def analyze_with_semaphore(*args):
+        async with semaphore:
+            return await analyze_single_commit(*args)
+    
+    tasks = [
+        analyze_with_semaphore(client, repo, c, la, ld, lm, f, msg)
+        for repo, c, la, ld, lm, f, msg in zip(
+            repo_name.to_pylist(),
+            commit_count.to_pylist(),
+            lines_added.to_pylist(),
+            lines_deleted.to_pylist(),
+            lines_modified.to_pylist(),
+            files_changed.to_pylist(),
+            message.to_pylist()
+        )
+    ]
+
+    # Run coroutines concurrently and gather results
+    import asyncio
+    results = []
+    async def run_tasks():
+        return await asyncio.gather(*tasks)
+    results = asyncio.run(run_tasks())
     return results
 
 
@@ -86,11 +120,11 @@ if __name__ == "__main__":
     df = df.where("lines_modified > 100 AND commit_count >= 3")
     df = df.limit(100)
 
-    df = df.with_column('commit_analysis', analyze_commit_message.with_concurrency(10)(df['repo_name'], df['commit_count'], df['lines_added'], df['lines_deleted'], df['lines_modified'], df['files_changed'], df['message']))
+    df = df.with_column('commit_analysis', analyze_commit_message(df['repo_name'], df['commit_count'], df['lines_added'], df['lines_deleted'], df['lines_modified'], df['files_changed'], df['message']))
     df = df.with_columns({
         "impact_to_project":  df['commit_analysis'].struct.get('impact_to_project'),
         "technical_ability":  df['commit_analysis'].struct.get('technical_ability'),
         "reason":  df['commit_analysis'].struct.get('reason'),
     })
     df = df.exclude('commit_analysis')
-    df.write_parquet("analyzed_data2/")
+    df.write_parquet("analyzed_data3")
