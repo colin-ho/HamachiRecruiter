@@ -29,3 +29,8 @@
 [13/03/2025 10:36] sammy: when running this sql statement: repo_owner = Eventual-Inc AND repo_name = Daft the error was DaftCoreException: DaftError::FieldNotFound Column Eventual is an outer column but does not have an associated schema. this is really hard to understand what happened
 [12/03/2025 23:30] colinho: ray runner needs to write better sized files by accumulating and splitting
 [12/03/2025 23:41] colinho: when i specify num rows in show i want to SEE NUM ROWS
+[13/03/2025 12:23] sammy: we should be able to run an expression on a list type. I wanted to normalize str values inside of a list and had to do col('languages').list.join(delimiter='|').str.normalize(remove_punct=False, lowercase=True, white_space=True).str.split('|')
+[13/03/2025 12:25] sammy: Sometimes I want to inspect the values of 1 column more. like a df.show('my_columns') and show the full values without truncation
+[13/03/2025 12:33] sammy: there should be a better way to take the union of lists during an agg rather than concatting anf then taking the uniq
+[13/03/2025 12:34] sammy: actually its called district, I thought it would be called unique
+[13/03/2025 12:35] sammy: col(x).list.len() should work! but instead its length

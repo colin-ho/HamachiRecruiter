@@ -7,9 +7,9 @@ class QueryAnalyzer:
     def __init__(self):
         self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-        df = daft.read_parquet(
-            "data/demo-analyzed-data-10k-v2/716ae28b-bfbb-4fcb-ba34-76daa2777df5-0.parquet"
-        ).collect()
+        df = daft.read_parquet("data/contributors_with_languages_and_project_types")
+        df = df.where(~daft.col('author_email').str.contains('[bot]') & ~daft.col('author_email').str.contains('@github.com')).collect()
+        
         self.sess = daft.Session()
         self.sess.create_temp_table("contributions", df)
 
@@ -20,26 +20,31 @@ class QueryAnalyzer:
         # First ask OpenAI to convert natural language to SQL
         system_prompt = """You are an expert at converting natural language questions into SQL queries.
         The database has a table called 'contributions' with these columns:
-        - repo_owner: string
-        - repo_name: string
-        - author_name: string
         - author_email: string
+        - author_name: string 
+        - email_count: int
         - commit_count: int
         - lines_added: int
         - lines_deleted: int
         - lines_modified: int
-        - impact_to_project: int (1-10 score)
-        - technical_ability: int (1-10 score)
-        - reason: string
         - first_commit: datetime
         - last_commit: datetime
-
-
+        - reason: string
+        - impact_to_project: float (1-10 score)
+        - technical_ability: float (1-10 score)
+        - languages: string (multiple values separated by '|', all values are lowercase and normalized)
+        - project_type: string (multiple values separated by '|', possible values are lowercase and normalized: [web_development, data_processing, dev_ops, mobile_development, machine_learning, crypto, artificial_intelligence, game_development, cloud_computing, security, developer_tools])
+        - repo: string
 
         Convert the following question into a SQL query:
 
         - Try to show other metadata such as what repo they contribute to and the reason when it is possible.
-        - the output schema should always be in this order: [author_name, author_email, commit_count, impact_to_project,technical_ability, reason]
+        - the output schema should always be in this order: [author_name, author_email, commit_count, impact_to_project, technical_ability, languages, project_type, repo, reason]
+        - we have a very simple SQL parser so avoid complex SQL syntax
+        - avoid use of the `ANY` operator
+        - when comparing dates, make sure to cast string literals to timestamps using CAST('2024-01-01' AS TIMESTAMP) format
+        - use >= for "after" or "since" comparisons and <= for "before" comparisons
+        - for date ranges, use BETWEEN CAST('2024-01-01' AS TIMESTAMP) AND CAST('2024-12-31' AS TIMESTAMP)
         """
 
         response = self.client.chat.completions.create(
@@ -71,10 +76,13 @@ if __name__ == "__main__":
 
     # Example usage
     # query = "Who are the top 10 contributors by technical ability and have contributed in 2024?"
-    query = "who are the most cracked engineers that we should hire at a series a startup in san francisco?"
-    result = analyzer.natural_language_query(query)
-    print(f"\nQuery: {query}")
-    print("\nResult:")
-    print(result)
+    while True:
+        query = input("\nEnter your query (or 'quit' to exit): ")
+        if query.lower() == 'quit':
+            break
+            
+        result = analyzer.natural_language_query(query)
+        print("\nResult:")
+        print(result)
 
     analyzer.close()
