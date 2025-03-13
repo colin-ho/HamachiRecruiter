@@ -66,7 +66,7 @@ class QueryAnalyzer:
         print(f"SQL Query:\n{sql_query}")
         # Execute the SQL query
         try:
-            result = self.sess.sql(sql_query).collect()
+            result = self.sess.sql(sql_query).to_pylist()
             return result
         except Exception as e:
             print(f"Error executing query: {str(e)}")
