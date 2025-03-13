@@ -2,7 +2,10 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 from urllib.parse import parse_qs, urlparse
 from datetime import datetime, timedelta
-
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from candidate_analysis.query import QueryAnalyzer
 # Mock data
 MOCK_DEVELOPERS = [
     {
@@ -52,6 +55,8 @@ MOCK_DEVELOPERS = [
     }
 ]
 
+query_analyzer = QueryAnalyzer()
+
 class SearchHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
@@ -60,7 +65,10 @@ class SearchHandler(BaseHTTPRequestHandler):
             print(f"Query: {query}")
             
             # Filter developers based on search query
-            results = MOCK_DEVELOPERS
+            results = query_analyzer.natural_language_query(query)
+
+            if "error" in results[0]:
+                raise Exception(results[0]["error"])
             
             print(f"Results: {results}")
             # Send response
@@ -72,6 +80,7 @@ class SearchHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(results).encode())
             
         except Exception as e:
+            print(f"Error: {e}")
             self.send_response(500)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')

@@ -1,9 +1,11 @@
 export interface Developer {
-  name: string;
-  email: string;
-  repos: string[];
-  last_committed: string;
-  project_type: string[];
+  author_name: string;
+  author_email: string;
+  commit_count: number;
+  impact_to_project: number;
   technical_ability: number;
-  language_skill: Record<string, number>;
+  languages: string;
+  project_type: string;
+  repo: string;
+  reason: string;
 }

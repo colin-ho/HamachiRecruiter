@@ -17,7 +17,6 @@ export function SearchForm({ searchQuery, setSearchQuery, handleSearch, isLoadin
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="The best Rust developers working on data processing"
           className="w-full pl-12 pr-32 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none shadow-sm transition-all duration-200 hover:bg-white focus:bg-white"
         />
         <button

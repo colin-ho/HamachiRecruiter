@@ -5,7 +5,7 @@ import { DeveloperTable } from './components/DeveloperTable';
 import { SearchForm } from './components/SearchForm';
 
 function App() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState('The best Rust developers who work in data processing');
   const [developers, setDevelopers] = useState<Developer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
