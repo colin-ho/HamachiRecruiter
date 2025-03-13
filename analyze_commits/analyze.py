@@ -74,7 +74,7 @@ def analyze_commit_message(repo_name, commit_count, lines_added, lines_deleted, 
         """
         try:
             result = await client.chat.completions.create(
-                model="accounts/fireworks/models/llama-v3p2-3b-instruct#accounts/sammy-b656e2/deployments/908139cd",
+                model="accounts/fireworks/models/llama-v3p2-3b-instruct#accounts/sammy-b656e2/deployments/61bd1cb6",
                 # model="accounts/fireworks/models/llama-v3p2-3b-instruct",
                 response_model=CommitQuality,
                 messages=[
@@ -122,7 +122,8 @@ def analyze_commit_message(repo_name, commit_count, lines_added, lines_deleted, 
 
 
 if __name__ == "__main__":
-    df = daft.read_parquet("data/commit_data.parquet")
+    # df = daft.read_parquet("data/commit_data.parquet")
+    df = daft.read_parquet("s3://eventual-data-test-bucket/HamachiRecruiterData/raw_commits2/")
     df = df.groupby('repo_owner', 'repo_name', 'author_email').agg([
         daft.col('author_name').any_value(),
         daft.col('date').count().alias('commit_count'),
@@ -136,7 +137,7 @@ if __name__ == "__main__":
     ])
     # we only care about folks who have contributed at least 100 lines of code and 3 commits
     df = df.where("lines_modified > 100 AND commit_count >= 3")
-    df = df.limit(10000)
+    df = df.limit(100)
 
     df = df.with_column('commit_analysis', analyze_commit_message(df['repo_name'], df['commit_count'], df['lines_added'], df['lines_deleted'], df['lines_modified'], df['files_changed'], df['message']))
     df = df.with_columns({
@@ -145,4 +146,5 @@ if __name__ == "__main__":
         "reason":  df['commit_analysis'].struct.get('reason'),
     })
     df = df.exclude('commit_analysis')
-    df.write_parquet("data/demo-analyzed-data-10k-v2")
+    # df.write_parquet("s3://eventual-data-test-bucket/HamachiRecruiterData/contributer_data/")
+    df.write_parquet("data/contributer_data_100")
