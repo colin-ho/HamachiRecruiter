@@ -10,10 +10,10 @@ from pydantic import BaseModel
 import os
 
 if __name__ == "__main__":
-    # df = daft.read_parquet("data/commit_data.parquet")
     df = daft.read_parquet(
-        "s3://eventual-data-test-bucket/HamachiRecruiterData/raw_commits2/"
+        "s3://eventual-data-test-bucket/HamachiRecruiterData/raw_commits_hash_dedupped"
     )
+
     df = df.groupby("repo_owner", "repo_name", "author_email").agg(
         [
             daft.col("author_name").any_value(),
@@ -27,17 +27,8 @@ if __name__ == "__main__":
             daft.col("date").max().alias("last_commit"),
         ]
     )
-    # we only care about folks who have contributed at least 100 lines of code and 3 commits
-    # df = df.where("lines_modified > 100 AND commit_count >= 3")
-    # df = df.limit(100)
 
-    # df = df.with_column('commit_analysis', analyze_commit_message(df['repo_name'], df['commit_count'], df['lines_added'], df['lines_deleted'], df['lines_modified'], df['files_changed'], df['message']))
-    # df = df.with_columns({
-    #     "impact_to_project":  df['commit_analysis'].struct.get('impact_to_project'),
-    #     "technical_ability":  df['commit_analysis'].struct.get('technical_ability'),
-    #     "reason":  df['commit_analysis'].struct.get('reason'),
-    # })
-    # df = df.exclude('commit_analysis')
     df.write_parquet(
-        "s3://eventual-data-test-bucket/HamachiRecruiterData/contributer_raw/"
+        "s3://eventual-data-test-bucket/HamachiRecruiterData/contributer_raw2",
+        write_mode="overwrite"
     )
