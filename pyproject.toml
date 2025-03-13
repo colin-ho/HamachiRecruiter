@@ -12,7 +12,10 @@ dependencies = [
     "fireworks-ai>=0.15.12",
     "gitpython>=3.1.44",
     "instructor[bedrock]>=1.7.4",
+    "instructor>=1.7.4",
+    "ipython>=9.0.2",
     "openai>=1.66.3",
     "pydantic>=2.10.6",
     "pygithub>=2.6.1",
+    "ray>=2.43.0",
 ]
