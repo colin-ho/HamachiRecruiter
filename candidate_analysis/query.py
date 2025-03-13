@@ -49,6 +49,7 @@ class QueryAnalyzer:
         - use >= for "after" or "since" comparisons and <= for "before" comparisons
         - for date ranges, use BETWEEN CAST('2024-01-01' AS TIMESTAMP) AND CAST('2024-12-31' AS TIMESTAMP)
         - unless specified otherwise, limit results to top 100 candidates ordered by technical_ability DESC, impact_to_project DESC, commit_count DESC
+        - project_type must be one or more of: web_development, data_processing, dev_ops, mobile_development, machine_learning, crypto, artificial_intelligence, game_development, cloud_computing, security, developer_tools
         """
 
         response = self.client.chat.completions.create(
