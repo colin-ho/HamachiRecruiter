@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react";
-import type { Developer } from "../types/developer";
+import React, { useState, useRef, useEffect } from "react";
+import type { Developer, RepoDetails } from "../types/developer";
 
 interface DeveloperTableProps {
   developers: Developer[];
@@ -66,13 +66,31 @@ const getAbilityColor = (score: number) => {
   return "bg-gray-500";
 };
 
+// Helper to calculate average technical ability across repos
+const getAverageTechnicalAbility = (repos: RepoDetails[]): number => {
+  if (repos.length === 0) return 0;
+  const sum = repos.reduce((acc, repo) => acc + repo.technical_ability, 0);
+  return sum / repos.length;
+};
+
+// Helper to get total commit count across repos
+const getTotalCommitCount = (repos: RepoDetails[]): number => {
+  return repos.reduce((acc, repo) => acc + repo.commit_count, 0);
+};
+
 export function DeveloperTable({ developers }: DeveloperTableProps) {
   const [selectedDeveloper, setSelectedDeveloper] = useState<Developer | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number } | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
+  
+  // Reset selected developer and tooltip when developers array changes
+  useEffect(() => {
+    setSelectedDeveloper(null);
+    setTooltipPosition(null);
+  }, [developers]);
 
   const handleCellClick = (dev: Developer, event: React.MouseEvent) => {
-    if (selectedDeveloper === dev) {
+    if (selectedDeveloper?.author_email === dev.author_email) {
       setSelectedDeveloper(null);
       setTooltipPosition(null);
     } else {
@@ -112,86 +130,107 @@ export function DeveloperTable({ developers }: DeveloperTableProps) {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {developers.map((dev) => (
-            <tr 
-              key={dev.author_email} 
-              className={`hover:bg-gray-50 transition-colors duration-150 relative ${selectedDeveloper === dev ? 'bg-gray-50' : ''}`}
-            >
-              <td className="px-6 py-4 whitespace-nowrap cursor-pointer" onClick={(e) => handleCellClick(dev, e)}>
-                <div className="flex flex-col">
-                  <div className="text-lg font-bold text-gray-900 mb-1">
-                    {dev.author_name}
-                  </div>
-                  {dev.author_email.split("|").map((email, i) => (
-                    <div key={i} className="text-sm text-gray-500">
-                      {email}
+          {developers.map((dev) => {
+            const isSelected = selectedDeveloper?.author_email === dev.author_email;
+            const totalCommits = getTotalCommitCount(dev.repo);
+            const avgTechnicalAbility = getAverageTechnicalAbility(dev.repo);
+            
+            return (
+              <tr 
+                key={dev.author_email} 
+                className={`hover:bg-gray-50 transition-colors duration-150 relative ${isSelected ? 'bg-gray-50' : ''}`}
+              >
+                <td className="px-6 py-4 whitespace-nowrap cursor-pointer" onClick={(e) => handleCellClick(dev, e)}>
+                  <div className="flex flex-col">
+                    <div className="text-lg font-bold text-gray-900 mb-1">
+                      {dev.author_name}
                     </div>
-                  ))}
-                  <div className="text-sm font-semibold text-indigo-800 mt-1">
-                    {dev.commit_count} commits
+                    {dev.author_email.split("|").map((email, i) => (
+                      <div key={i} className="text-sm text-gray-500">
+                        {email}
+                      </div>
+                    ))}
+                    <div className="text-sm font-semibold text-indigo-800 mt-1">
+                      {totalCommits} commits
+                    </div>
                   </div>
-                </div>
-              </td>
-              <td className="px-6 py-4 cursor-pointer" onClick={(e) => handleCellClick(dev, e)}>
-                <div className="flex flex-wrap gap-1">
-                  {dev.project_type.split("|").map((type, i) => {
-                    const { bg, text } = getTagColor(type, PROJECT_TYPE_COLORS);
-                    return (
-                      <span
-                        key={i}
-                        className={`px-2 py-1 text-xs font-medium rounded-full ${bg} ${text}`}
-                      >
-                        {type.replace(/_/g, " ")}
-                      </span>
-                    );
-                  })}
-                </div>
-              </td>
-              <td className="px-6 py-4 cursor-pointer" onClick={(e) => handleCellClick(dev, e)}>
-                <div className="text-sm text-gray-700 bg-gray-50 px-3 py-1 rounded-lg border border-gray-200">
-                  <a 
-                    href={`https://github.com/${dev.repo}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="text-gray-600 hover:text-gray-800 underline"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {dev.repo}
-                  </a>
-                </div>
-              </td>
-              <td className="px-6 py-4 cursor-pointer" onClick={(e) => handleCellClick(dev, e)}>
-                <div className="flex flex-wrap gap-1">
-                  {dev.languages.split("|").map((lang, i) => {
-                    const { bg, text } = getTagColor(lang, LANGUAGE_COLORS);
-                    return (
-                      <span
-                        key={i}
-                        className={`px-2 py-1 text-xs font-medium rounded-full ${bg} ${text}`}
-                      >
-                        {lang}
-                      </span>
-                    );
-                  })}
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap cursor-pointer" onClick={(e) => handleCellClick(dev, e)}>
-                <div className="flex items-center">
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div
-                      className={`${getAbilityColor(dev.technical_ability || 0)} h-3 rounded-full transition-all duration-300`}
-                      style={{
-                        width: `${((dev.technical_ability || 0) / 10) * 100}%`,
-                      }}
-                    ></div>
+                </td>
+                <td className="px-6 py-4 cursor-pointer" onClick={(e) => handleCellClick(dev, e)}>
+                  <div className="flex flex-wrap gap-1">
+                    {dev.project_type.split("|").map((type, i) => {
+                      const { bg, text } = getTagColor(type, PROJECT_TYPE_COLORS);
+                      return (
+                        <span
+                          key={i}
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${bg} ${text}`}
+                        >
+                          {type.replace(/_/g, " ")}
+                        </span>
+                      );
+                    })}
                   </div>
-                  <span className="ml-2 text-sm font-medium text-gray-700">
-                    {Math.round(dev.technical_ability || 0)}/10
-                  </span>
-                </div>
-              </td>
-            </tr>
-          ))}
+                </td>
+                <td className="px-6 py-4 cursor-pointer" onClick={(e) => handleCellClick(dev, e)}>
+                  <div className="flex flex-col space-y-2">
+                    {dev.repo.map((repoDetail, index) => (
+                      <div key={index} className="text-sm text-gray-700 bg-gray-50 px-3 py-1 rounded-lg border border-gray-200 relative group">
+                        <a 
+                          href={`https://github.com/${repoDetail.repo}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-gray-600 hover:text-gray-800 underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {repoDetail.repo}
+                        </a>
+                        <div className="absolute left-full ml-2 top-0 z-10 w-64 bg-gray-900 text-white p-3 rounded-lg shadow-lg 
+                                        opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                          <div className="text-xs space-y-1">
+                            <p><span className="font-semibold">Commits:</span> {repoDetail.commit_count}</p>
+                            <p><span className="font-semibold">Impact:</span> {repoDetail.impact_to_project}/10</p>
+                            <p><span className="font-semibold">Technical Ability:</span> {repoDetail.technical_ability}/10</p>
+                            <p><span className="font-semibold">Lines Modified:</span> {repoDetail.lines_modified}</p>
+                            <p><span className="font-semibold">First Commit:</span> {new Date(repoDetail.first_commit).toLocaleDateString()}</p>
+                            <p><span className="font-semibold">Last Commit:</span> {new Date(repoDetail.last_commit).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </td>
+                <td className="px-6 py-4 cursor-pointer" onClick={(e) => handleCellClick(dev, e)}>
+                  <div className="flex flex-wrap gap-1">
+                    {dev.languages.split("|").map((lang, i) => {
+                      const { bg, text } = getTagColor(lang, LANGUAGE_COLORS);
+                      return (
+                        <span
+                          key={i}
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${bg} ${text}`}
+                        >
+                          {lang}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap cursor-pointer" onClick={(e) => handleCellClick(dev, e)}>
+                  <div className="flex items-center">
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div
+                        className={`${getAbilityColor(avgTechnicalAbility)} h-3 rounded-full transition-all duration-300`}
+                        style={{
+                          width: `${(avgTechnicalAbility / 10) * 100}%`,
+                        }}
+                      ></div>
+                    </div>
+                    <span className="ml-2 text-sm font-medium text-gray-700">
+                      {Math.round(avgTechnicalAbility)}/10
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       

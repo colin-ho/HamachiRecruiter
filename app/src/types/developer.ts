@@ -3,8 +3,8 @@ export interface RepoDetails {
   impact_to_project: number;
   technical_ability: number;
   repo: string;
-  first_commit: Date;
-  last_commit: Date;
+  first_commit: string;
+  last_commit: string;
   lines_modified: number;
 }
 

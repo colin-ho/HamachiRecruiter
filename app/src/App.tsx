@@ -22,6 +22,7 @@ function App() {
         throw new Error('Failed to fetch developers');
       }
       const data = await response.json();
+      console.log(data);
       if (!data || data.length === 0) {
         setError('No developers found matching your search criteria.');
         setDevelopers([]);

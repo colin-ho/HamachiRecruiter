@@ -10,7 +10,7 @@ class QueryAnalyzer:
         key = os.environ.get("OPENAI_API_KEY")
         self.client = OpenAI(api_key=key)
 
-        df = daft.read_parquet("data/contributors_with_languages_and_project_types")
+        df = daft.read_parquet("s3://eventual-data-test-bucket/HamachiRecruiterData/contributors_with_languages_and_project_types")
         df = df.where(~daft.col('author_email').str.contains('[bot]') & ~daft.col('author_email').str.contains('@github.com')).collect()
         
         self.sess = daft.Session()
@@ -73,8 +73,8 @@ class QueryAnalyzer:
                     col("impact_to_project"),
                     col("technical_ability"), 
                     col("repo"),
-                    col("first_commit"),
-                    col("last_commit"),
+                    col("first_commit").cast(daft.DataType.string()),
+                    col("last_commit").cast(daft.DataType.string()),
                     col("lines_modified")
                 )
             )
