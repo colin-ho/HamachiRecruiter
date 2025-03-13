@@ -27,3 +27,5 @@
 [12/03/2025 22:45] colinho: make swordfish non partitioned writer faster
 [13/03/2025 10:34] sammy: Using the list namespace is extremely confusing. I want to just figure out if my list of strings contains a certain string
 [13/03/2025 10:36] sammy: when running this sql statement: repo_owner = Eventual-Inc AND repo_name = Daft the error was DaftCoreException: DaftError::FieldNotFound Column Eventual is an outer column but does not have an associated schema. this is really hard to understand what happened
+[12/03/2025 23:30] colinho: ray runner needs to write better sized files by accumulating and splitting
+[12/03/2025 23:41] colinho: when i specify num rows in show i want to SEE NUM ROWS
