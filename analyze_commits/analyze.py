@@ -8,7 +8,9 @@ from fireworks.client import Fireworks, AsyncFireworks
 import instructor
 from pydantic import BaseModel
 import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 class CommitQuality(BaseModel):
     impact_to_project: int = Field(
@@ -135,13 +137,11 @@ def analyze_commit_message(
 
 
 if __name__ == "__main__":
-    # df = daft.read_parquet("data/commit_data.parquet")
     df = daft.read_parquet(
         "s3://eventual-data-test-bucket/HamachiRecruiterData/contributer_raw2/"
     )
     # we only care about folks who have contributed at least 100 lines of code and 3 commits
     df = df.where("lines_modified > 100 AND commit_count >= 3")
-
     df = df.with_column(
         "commit_analysis",
         analyze_commit_message(
@@ -163,4 +163,3 @@ if __name__ == "__main__":
     )
     df = df.exclude("commit_analysis")
     df.write_parquet("s3://eventual-data-test-bucket/HamachiRecruiterData/contributer_data_enriched")
-    # df.write_parquet("data/contributer_data_100")
