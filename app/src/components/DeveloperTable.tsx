@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useRef } from "react";
 import type { Developer, RepoDetails } from "../types/developer";
 
 interface DeveloperTableProps {
@@ -79,34 +79,8 @@ const getTotalCommitCount = (repos: RepoDetails[]): number => {
 };
 
 export function DeveloperTable({ developers }: DeveloperTableProps) {
-  const [selectedDeveloper, setSelectedDeveloper] = useState<Developer | null>(null);
-  const [tooltipPosition, setTooltipPosition] = useState<{ top: number } | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
   
-  // Reset selected developer and tooltip when developers array changes
-  useEffect(() => {
-    setSelectedDeveloper(null);
-    setTooltipPosition(null);
-  }, [developers]);
-
-  const handleCellClick = (dev: Developer, event: React.MouseEvent) => {
-    if (selectedDeveloper?.author_email === dev.author_email) {
-      setSelectedDeveloper(null);
-      setTooltipPosition(null);
-    } else {
-      setSelectedDeveloper(dev);
-      
-      // Calculate position for the tooltip
-      const rowRect = (event.currentTarget as HTMLElement).closest('tr')?.getBoundingClientRect();
-      const tableRect = tableRef.current?.getBoundingClientRect();
-      
-      if (rowRect && tableRect) {
-        const top = rowRect.top - tableRect.top + (rowRect.height / 2);
-        setTooltipPosition({ top });
-      }
-    }
-  };
-
   return (
     <div className="overflow-x-auto rounded-lg shadow-lg border border-gray-200 relative" ref={tableRef}>
       <table className="min-w-full bg-white rounded-lg overflow-hidden">
@@ -131,16 +105,15 @@ export function DeveloperTable({ developers }: DeveloperTableProps) {
         </thead>
         <tbody className="divide-y divide-gray-200">
           {developers.map((dev) => {
-            const isSelected = selectedDeveloper?.author_email === dev.author_email;
             const totalCommits = getTotalCommitCount(dev.repo);
             const avgTechnicalAbility = getAverageTechnicalAbility(dev.repo);
             
             return (
               <tr 
                 key={dev.author_email} 
-                className={`hover:bg-gray-50 transition-colors duration-150 relative ${isSelected ? 'bg-gray-50' : ''}`}
+                className="hover:bg-gray-50 transition-colors duration-150 relative"
               >
-                <td className="px-6 py-4 whitespace-nowrap cursor-pointer" onClick={(e) => handleCellClick(dev, e)}>
+                <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex flex-col">
                     <div className="text-lg font-bold text-gray-900 mb-1">
                       {dev.author_name}
@@ -155,7 +128,7 @@ export function DeveloperTable({ developers }: DeveloperTableProps) {
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 cursor-pointer" onClick={(e) => handleCellClick(dev, e)}>
+                <td className="px-6 py-4">
                   <div className="flex flex-wrap gap-1">
                     {dev.project_type.split("|").map((type, i) => {
                       const { bg, text } = getTagColor(type, PROJECT_TYPE_COLORS);
@@ -170,7 +143,7 @@ export function DeveloperTable({ developers }: DeveloperTableProps) {
                     })}
                   </div>
                 </td>
-                <td className="px-6 py-4 cursor-pointer" onClick={(e) => handleCellClick(dev, e)}>
+                <td className="px-6 py-4">
                   <div className="flex flex-col space-y-2">
                     {dev.repo.map((repoDetail, index) => (
                       <div key={index} className="text-sm text-gray-700 bg-gray-50 px-3 py-1 rounded-lg border border-gray-200 relative group">
@@ -179,7 +152,6 @@ export function DeveloperTable({ developers }: DeveloperTableProps) {
                           target="_blank" 
                           rel="noopener noreferrer" 
                           className="text-gray-600 hover:text-gray-800 underline"
-                          onClick={(e) => e.stopPropagation()}
                         >
                           {repoDetail.repo}
                         </a>
@@ -198,7 +170,7 @@ export function DeveloperTable({ developers }: DeveloperTableProps) {
                     ))}
                   </div>
                 </td>
-                <td className="px-6 py-4 cursor-pointer" onClick={(e) => handleCellClick(dev, e)}>
+                <td className="px-6 py-4">
                   <div className="flex flex-wrap gap-1">
                     {dev.languages.split("|").map((lang, i) => {
                       const { bg, text } = getTagColor(lang, LANGUAGE_COLORS);
@@ -213,7 +185,7 @@ export function DeveloperTable({ developers }: DeveloperTableProps) {
                     })}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap cursor-pointer" onClick={(e) => handleCellClick(dev, e)}>
+                <td className="px-6 py-4 whitespace-nowrap relative group">
                   <div className="flex items-center">
                     <div className="w-full bg-gray-200 rounded-full h-3">
                       <div
@@ -227,29 +199,23 @@ export function DeveloperTable({ developers }: DeveloperTableProps) {
                       {Math.round(avgTechnicalAbility)}/10
                     </span>
                   </div>
+                  
+                  {/* Reason tooltip on hover */}
+                  {dev.reason && (
+                    <div className="absolute right-full mr-2 top-1/2 z-10 w-64 bg-gray-900 text-white p-3 rounded-lg shadow-lg 
+                                  opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform -translate-y-1/2 max-h-48 overflow-y-auto overflow-x-hidden">
+                      <div className="text-xs space-y-1">
+                        <p><span className="font-semibold">Reason:</span></p>
+                        <p className="whitespace-normal break-words">{dev.reason}</p>
+                      </div>
+                    </div>
+                  )}
                 </td>
               </tr>
             );
           })}
         </tbody>
       </table>
-      
-      {selectedDeveloper && tooltipPosition && (
-        <div 
-          className="absolute right-0 z-10"
-          style={{ 
-            top: `${tooltipPosition.top}px`, 
-            transform: 'translateY(-50%)'
-          }}
-        >
-          <div className="flex items-center">
-            <div className="w-4 h-4 bg-gray-900 transform rotate-45 -ml-2"></div>
-            <div className="bg-gray-900 text-white p-4 rounded-lg shadow-lg max-w-xs max-h-48 overflow-y-auto">
-              <p className="text-sm">{selectedDeveloper.reason}</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
