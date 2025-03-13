@@ -2,7 +2,7 @@ import daft
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
-
+from daft import col
 load_dotenv()
 
 class QueryAnalyzer:
@@ -10,7 +10,7 @@ class QueryAnalyzer:
         key = os.environ.get("OPENAI_API_KEY")
         self.client = OpenAI(api_key=key)
 
-        df = daft.read_parquet("s3://eventual-data-test-bucket/HamachiRecruiterData/contributors_with_languages_and_project_types")
+        df = daft.read_parquet("data/contributors_with_languages_and_project_types")
         df = df.where(~daft.col('author_email').str.contains('[bot]') & ~daft.col('author_email').str.contains('@github.com')).collect()
         
         self.sess = daft.Session()
@@ -42,7 +42,7 @@ class QueryAnalyzer:
         Convert the following question into a SQL query:
 
         - Try to show other metadata such as what repo they contribute to and the reason when it is possible.
-        - the output schema should always be in this order: [author_name, author_email, commit_count, impact_to_project, technical_ability, languages, project_type, repo, reason]
+        - the output schema should always be in this order: [author_name, author_email, commit_count, impact_to_project, technical_ability, languages, project_type, repo, reason, first_commit, last_commit, lines_modified]
         - we have a very simple SQL parser so avoid complex SQL syntax
         - avoid use of the `ANY` operator
         - when comparing dates, make sure to cast string literals to timestamps using CAST('2024-01-01' AS TIMESTAMP) format
@@ -66,8 +66,27 @@ class QueryAnalyzer:
         print(f"SQL Query:\n{sql_query}")
         # Execute the SQL query
         try:
-            result = self.sess.sql(sql_query).to_pylist()
-            return result
+            result = self.sess.sql(sql_query)
+            result_with_struct= result.with_column(
+                "repo", daft.struct(
+                    col("commit_count"),
+                    col("impact_to_project"),
+                    col("technical_ability"), 
+                    col("repo"),
+                    col("first_commit"),
+                    col("last_commit"),
+                    col("lines_modified")
+                )
+            )
+            
+            result_dedupped = result_with_struct.groupby('author_email').agg(
+                daft.col('author_name').any_value(),
+                daft.col('languages').any_value(),
+                daft.col('project_type').any_value(),
+                daft.col('reason').any_value(),
+                daft.col('repo').agg_list(),
+            )
+            return result_dedupped.to_pylist()
         except Exception as e:
             print(f"Error executing query: {str(e)}")
             return [{"error": str(e)}]
