@@ -2,11 +2,14 @@ import daft
 import os
 from openai import OpenAI
 
+
 class QueryAnalyzer:
     def __init__(self):
         self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-        df = daft.read_parquet('data/demo-analyzed-data-10k-v2/716ae28b-bfbb-4fcb-ba34-76daa2777df5-0.parquet').collect()
+        df = daft.read_parquet(
+            "data/demo-analyzed-data-10k-v2/716ae28b-bfbb-4fcb-ba34-76daa2777df5-0.parquet"
+        ).collect()
         self.sess = daft.Session()
         self.sess.create_temp_table("contributions", df)
 
@@ -18,7 +21,7 @@ class QueryAnalyzer:
         system_prompt = """You are an expert at converting natural language questions into SQL queries.
         The database has a table called 'contributions' with these columns:
         - repo_owner: string
-        - repo_name: string  
+        - repo_name: string
         - author_name: string
         - author_email: string
         - commit_count: int
@@ -43,13 +46,15 @@ class QueryAnalyzer:
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": query}
-            ]
+                {"role": "user", "content": query},
+            ],
         )
 
         # Strip any markdown code block formatting from the response
-        sql_query = response.choices[0].message.content.strip('`').replace('sql', '').strip()
-        print(f'SQL Query:\n{sql_query}')
+        sql_query = (
+            response.choices[0].message.content.strip("`").replace("sql", "").strip()
+        )
+        print(f"SQL Query:\n{sql_query}")
         # Execute the SQL query
         try:
             result = self.sess.sql(sql_query).collect()
@@ -60,9 +65,10 @@ class QueryAnalyzer:
     def close(self):
         del self.sess
 
+
 if __name__ == "__main__":
     analyzer = QueryAnalyzer()
-    
+
     # Example usage
     # query = "Who are the top 10 contributors by technical ability and have contributed in 2024?"
     query = "who are the most cracked engineers that we should hire at a series a startup in san francisco?"

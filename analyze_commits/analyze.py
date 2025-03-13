@@ -11,8 +11,16 @@ import os
 
 
 class CommitQuality(BaseModel):
-    impact_to_project: int = Field(ge=1, le=10, description="Score from 1-10 indicating impact to project where 10 is someone who the project revolves around and 1 is tiny contributions")
-    technical_ability: int = Field(ge=1, le=10, description="Score from 1-10 indicating technical ability where 10 is a god tier expert and 1 is a beginner")
+    impact_to_project: int = Field(
+        ge=1,
+        le=10,
+        description="Score from 1-10 indicating impact to project where 10 is someone who the project revolves around and 1 is tiny contributions",
+    )
+    technical_ability: int = Field(
+        ge=1,
+        le=10,
+        description="Score from 1-10 indicating technical ability where 10 is a god tier expert and 1 is a beginner",
+    )
     reason: str
 
 
@@ -25,23 +33,27 @@ class CommitQuality(BaseModel):
         )
     ),
 )
-def analyze_commit_message(repo_name, commit_count, lines_added, lines_deleted, lines_modified, files_changed, message):
-
-    client = AsyncFireworks(
-        api_key=os.environ.get("FIREWORKS_API_KEY"),
-        timeout=60
-    )
+def analyze_commit_message(
+    repo_name,
+    commit_count,
+    lines_added,
+    lines_deleted,
+    lines_modified,
+    files_changed,
+    message,
+):
+    client = AsyncFireworks(api_key=os.environ.get("FIREWORKS_API_KEY"), timeout=60)
     client = instructor.from_fireworks(client)
 
     results = []
-    async def analyze_single_commit(client, repo, c, la, ld, lm, f, msg):
 
+    async def analyze_single_commit(client, repo, c, la, ld, lm, f, msg):
         # Limit message length to first 500 lines or 10000 words
-        msg_lines = msg.split('\n')[:500]
-        msg_text = '\n'.join(msg_lines)
-        
+        msg_lines = msg.split("\n")[:500]
+        msg_text = "\n".join(msg_lines)
+
         msg_words = msg_text.split()[:10000]
-        msg_text = ' '.join(msg_words)
+        msg_text = " ".join(msg_words)
         msg = msg_text
 
         f = list(set(f))[:100]
@@ -66,7 +78,7 @@ def analyze_commit_message(repo_name, commit_count, lines_added, lines_deleted, 
         - Contribution volume: {c} commits
         - Code changes: {la} lines added, {ld} lines deleted, {lm} lines modified
         - Scope of changes: Files modified: {f}
-        
+
         Based on these commit messages:
         {msg}
 
@@ -77,9 +89,7 @@ def analyze_commit_message(repo_name, commit_count, lines_added, lines_deleted, 
                 model="accounts/fireworks/models/llama-v3p2-3b-instruct#accounts/sammy-b656e2/deployments/61bd1cb6",
                 # model="accounts/fireworks/models/llama-v3p2-3b-instruct",
                 response_model=CommitQuality,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ],
+                messages=[{"role": "user", "content": prompt}],
                 max_tokens=128,
                 max_retries=3,
             )
@@ -90,15 +100,15 @@ def analyze_commit_message(repo_name, commit_count, lines_added, lines_deleted, 
             print(f"Got error when validating input from model {e}")
             return None
 
-
     # Limit concurrent requests to 5 (or adjust as needed)
     import asyncio
+
     semaphore = asyncio.Semaphore(64)
-    
+
     async def analyze_with_semaphore(*args):
         async with semaphore:
             return await analyze_single_commit(*args)
-    
+
     tasks = [
         analyze_with_semaphore(client, repo, c, la, ld, lm, f, msg)
         for repo, c, la, ld, lm, f, msg in zip(
@@ -108,32 +118,50 @@ def analyze_commit_message(repo_name, commit_count, lines_added, lines_deleted, 
             lines_deleted.to_pylist(),
             lines_modified.to_pylist(),
             files_changed.to_pylist(),
-            message.to_pylist()
+            message.to_pylist(),
         )
     ]
 
     # Run coroutines concurrently and gather results
     import asyncio
+
     results = []
+
     async def run_tasks():
         return await asyncio.gather(*tasks)
+
     results = asyncio.run(run_tasks())
     return results
 
 
 if __name__ == "__main__":
     # df = daft.read_parquet("data/commit_data.parquet")
-    df = daft.read_parquet("s3://eventual-data-test-bucket/HamachiRecruiterData/contributer_raw/")
+    df = daft.read_parquet(
+        "s3://eventual-data-test-bucket/HamachiRecruiterData/contributer_raw/"
+    )
     # we only care about folks who have contributed at least 100 lines of code and 3 commits
     df = df.where("lines_modified > 100 AND commit_count >= 3")
     df = df.limit(100)
 
-    df = df.with_column('commit_analysis', analyze_commit_message(df['repo_name'], df['commit_count'], df['lines_added'], df['lines_deleted'], df['lines_modified'], df['files_changed'], df['message']))
-    df = df.with_columns({
-        "impact_to_project":  df['commit_analysis'].struct.get('impact_to_project'),
-        "technical_ability":  df['commit_analysis'].struct.get('technical_ability'),
-        "reason":  df['commit_analysis'].struct.get('reason'),
-    })
-    df = df.exclude('commit_analysis')
+    df = df.with_column(
+        "commit_analysis",
+        analyze_commit_message(
+            df["repo_name"],
+            df["commit_count"],
+            df["lines_added"],
+            df["lines_deleted"],
+            df["lines_modified"],
+            df["files_changed"],
+            df["message"],
+        ),
+    )
+    df = df.with_columns(
+        {
+            "impact_to_project": df["commit_analysis"].struct.get("impact_to_project"),
+            "technical_ability": df["commit_analysis"].struct.get("technical_ability"),
+            "reason": df["commit_analysis"].struct.get("reason"),
+        }
+    )
+    df = df.exclude("commit_analysis")
     # df.write_parquet("s3://eventual-data-test-bucket/HamachiRecruiterData/contributer_data/")
     df.write_parquet("data/contributer_data_100")

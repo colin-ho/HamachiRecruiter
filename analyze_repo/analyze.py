@@ -123,7 +123,9 @@ if __name__ == "__main__":
     )
 
     if args.write_to_file:
-        files = repo_data_with_project_type.write_parquet("repo_data_files_with_project_type")
+        files = repo_data_with_project_type.write_parquet(
+            "repo_data_files_with_project_type"
+        )
         print(f"Wrote files to repo_data_files_with_project_type")
         print(files)
     else:
