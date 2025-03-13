@@ -18,15 +18,17 @@ function App() {
     try {
       console.log(`127.0.0.1:8000/api/search?q=${encodeURIComponent(searchQuery)}`);
       const response = await fetch(`http://127.0.0.1:8000/api/search?q=${encodeURIComponent(searchQuery)}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch developers');
-      }
       const data = await response.json();
       console.log(data);
       if (!data || data.length === 0) {
         setError('No developers found matching your search criteria.');
         setDevelopers([]);
-      } else {
+      } 
+      else if (data.error) {
+        setError(data.error);
+        setDevelopers([]);
+      }
+      else {
         setDevelopers(data);
       }
     } catch (err) {

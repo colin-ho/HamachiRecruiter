@@ -1,4 +1,4 @@
-import React, { KeyboardEvent } from 'react';
+import React, { KeyboardEvent, useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 
 interface SearchFormProps {
@@ -9,6 +9,31 @@ interface SearchFormProps {
 }
 
 export function SearchForm({ searchQuery, setSearchQuery, handleSearch, isLoading }: SearchFormProps) {
+  const [loadingMessage, setLoadingMessage] = useState("Swimming through the data reefs to find your answer...");
+  
+  const loadingMessages = [
+    "Swimming through the data reefs to find your answer...",
+    "Diving deep into the developer ocean...",
+    "Casting our net for the perfect tech talent...",
+    "Reeling in the best developers for you...",
+    "Exploring the code coral reefs for hidden gems...",
+    "Navigating the sea of GitHub contributions...",
+  ];
+  
+  useEffect(() => {
+    if (isLoading) {
+      const interval = setInterval(() => {
+        setLoadingMessage(prevMessage => {
+          const currentIndex = loadingMessages.indexOf(prevMessage);
+          const nextIndex = (currentIndex + 1) % loadingMessages.length;
+          return loadingMessages[nextIndex];
+        });
+      }, 3000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isLoading]);
+
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -37,6 +62,11 @@ export function SearchForm({ searchQuery, setSearchQuery, handleSearch, isLoadin
           {isLoading ? 'Searching...' : 'Search'}
         </button>
       </div>
+      {isLoading && (
+        <div className="mt-4 text-blue-600 animate-pulse text-center">
+          {loadingMessage}
+        </div>
+      )}
     </form>
   );
 }

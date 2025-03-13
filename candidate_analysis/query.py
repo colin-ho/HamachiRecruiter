@@ -22,7 +22,7 @@ class QueryAnalyzer:
     def natural_language_query(self, query: str) -> str:
         # First ask OpenAI to convert natural language to SQL
         system_prompt = """You are an expert at converting natural language questions into SQL queries.
-        The database has a table called 'contributions' with these columns:
+        The database has a table about contributors to open source projects called 'contributions' with these columns:
         - author_email: string
         - author_name: string 
         - email_count: int
@@ -43,7 +43,8 @@ class QueryAnalyzer:
 
         - Try to show other metadata such as what repo they contribute to and the reason when it is possible.
         - the output schema should always be in this order: [author_name, author_email, commit_count, impact_to_project, technical_ability, languages, project_type, repo, reason, first_commit, last_commit, lines_modified]
-        - we have a very simple SQL parser so avoid complex SQL syntax
+        - we have a very simple SQL parser so please AVOID complex SQL syntax
+        - keep the SQL query as simple as possible
         - avoid use of the `ANY` operator
         - when comparing dates, make sure to cast string literals to timestamps using CAST('2024-01-01' AS TIMESTAMP) format
         - use >= for "after" or "since" comparisons and <= for "before" comparisons
@@ -61,13 +62,17 @@ class QueryAnalyzer:
         )
 
         # Strip any markdown code block formatting from the response
-        sql_query = (
+        llm_response = (
             response.choices[0].message.content.strip("`").replace("sql", "").strip()
         )
-        print(f"SQL Query:\n{sql_query}")
+        print(f"SQL Query:\n{llm_response}")
+        # if it doesn't start with "SELECT" or "select" then it's invalid
+        if not llm_response.lower().startswith("select"):
+            return [{"error": "Unable to answer question. Please ask only questions about open source project contributors. If we made a mistake, please file an issue at https://github.com/colin-ho/HamachiRecruiter/issues"}]
+
         # Execute the SQL query
         try:
-            result = self.sess.sql(sql_query)
+            result = self.sess.sql(llm_response)
             result_with_struct= result.with_column(
                 "repo", daft.struct(
                     col("commit_count"),
