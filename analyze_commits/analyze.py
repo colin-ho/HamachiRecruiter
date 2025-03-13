@@ -29,12 +29,23 @@ def analyze_commit_message(repo_name, commit_count, lines_added, lines_deleted, 
 
     client = AsyncFireworks(
         api_key=os.environ.get("FIREWORKS_API_KEY"),
-        timeout=6000
+        timeout=60
     )
     client = instructor.from_fireworks(client)
 
     results = []
     async def analyze_single_commit(client, repo, c, la, ld, lm, f, msg):
+
+        # Limit message length to first 500 lines or 10000 words
+        msg_lines = msg.split('\n')[:500]
+        msg_text = '\n'.join(msg_lines)
+        
+        msg_words = msg_text.split()[:10000]
+        msg_text = ' '.join(msg_words)
+        msg = msg_text
+
+        f = list(set(f))[:100]
+
         prompt = f"""You are an expert at analyzing GitHub contributions and determining developer impact and technical ability.
 
         Analyze the following GitHub contribution data to assess:
@@ -61,18 +72,24 @@ def analyze_commit_message(repo_name, commit_count, lines_added, lines_deleted, 
 
         Keep your reason explanation brief - maximum 4 sentences.
         """
+        try:
+            result = await client.chat.completions.create(
+                model="accounts/fireworks/models/llama-v3p2-3b-instruct#accounts/sammy-b656e2/deployments/908139cd",
+                # model="accounts/fireworks/models/llama-v3p2-3b-instruct",
+                response_model=CommitQuality,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=128,
+                max_retries=3,
+            )
 
-        result = await client.chat.completions.create(
-            model="accounts/fireworks/models/llama-v3p2-3b-instruct#accounts/sammy-b656e2/deployments/908139cd",
-            # model="accounts/fireworks/models/llama-v3p2-3b-instruct",
-            response_model=CommitQuality,
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=128
-            
-        )
-        return result.model_dump()
+            print(result.reason)
+            return result.model_dump()
+        except Exception as e:
+            print(f"Got error when validating input from model {e}")
+            return None
+
 
     # Limit concurrent requests to 5 (or adjust as needed)
     import asyncio
@@ -118,7 +135,7 @@ if __name__ == "__main__":
     ])
     # we only care about folks who have contributed at least 100 lines of code and 3 commits
     df = df.where("lines_modified > 100 AND commit_count >= 3")
-    df = df.limit(100)
+    df = df.limit(1000)
 
     df = df.with_column('commit_analysis', analyze_commit_message(df['repo_name'], df['commit_count'], df['lines_added'], df['lines_deleted'], df['lines_modified'], df['files_changed'], df['message']))
     df = df.with_columns({
@@ -127,4 +144,4 @@ if __name__ == "__main__":
         "reason":  df['commit_analysis'].struct.get('reason'),
     })
     df = df.exclude('commit_analysis')
-    df.write_parquet("analyzed_data3")
+    df.write_parquet("data/demo-analyzed-data2")
