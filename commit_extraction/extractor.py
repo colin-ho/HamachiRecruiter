@@ -3,108 +3,152 @@ from datetime import datetime
 import daft
 import tempfile
 
+test_logs = """
+---COMMIT START---
+10ff6172ef20e2c478bcbdf4ee7d73aef53d85c7
+i3water
+121024123@qq.com
+2023-05-10 20:12:24 +0800
+Merge pull request #600 from blinker-iot/dev_3.0
+
+update codes, fix ESP32 support codes.
+---COMMIT END---
+---COMMIT START---
+efde12b5070fd7d2c01efa4c224eff29a2e82ecf
+i3water
+121024123@qq.com
+2023-05-10 20:09:23 +0800
+update codes, fix ESP32 support codes.
+
+---COMMIT END---
+1	1	library.json
+1	1	library.properties
+1	1	src/Blinker/BlinkerConfig.h
+10	10	src/modules/mqtt/Adafruit_MQTT.cpp
+"""
+
+
+from datetime import datetime
+
+
+def safe_encode(text):
+    """
+    Safely encode string values to handle potential encoding issues.
+    Replaces invalid characters with the Unicode replacement character.
+
+    Args:
+        text: The string to safely encode
+
+    Returns:
+        str: The safely encoded string
+    """
+    if isinstance(text, str):
+        return text.encode("utf-8", "replace").decode("utf-8")
+    return text
+
 
 def parse_logs(logs):
     commits = []
     current_commit = None
-    files = []
-    iterator = iter(logs.split("\n"))
-    is_active = True
-    at_commit_end = False
-    while is_active:
-        try:
-            line = next(iterator)
-        except StopIteration:
-            is_active = False
-            continue
+
+    lines = logs.split("\n")
+    i = 0
+
+    while i < len(lines):
+        line = lines[i]
+        # Start of a new commit
         if line == "---COMMIT START---":
-            at_commit_end = False
             current_commit = {}
-            files = []
+            i += 1
             continue
+
+        # End of current commit
         elif line == "---COMMIT END---":
-            at_commit_end = True
-            continue
+            # Look ahead for file stats before next commit
+            file_stats = []
+            j = i + 1
 
-        if current_commit is not None:
-            # First line after START is commit hash
-            if "hash" not in current_commit:
-                current_commit["hash"] = line.strip()
-            # Second line is author name
-            elif "author_name" not in current_commit:
-                current_commit["author_name"] = line.strip()
-            # Third line is author email
-            elif "author_email" not in current_commit:
-                current_commit["author_email"] = line.strip()
-            # Fourth line is date
-            elif "date" not in current_commit:
-                dt = datetime.strptime(line.strip(), "%Y-%m-%d %H:%M:%S %z")
-                current_commit["date"] = dt
-            # Message comes next until we hit file stats
-            elif "message" not in current_commit:
-                message = [line]
-                while True:
+            while (
+                j < len(lines)
+                and lines[j] != "---COMMIT START---"
+                and lines[j] != "---COMMIT END---"
+            ):
+                parts = lines[j].strip().split("\t")
+                if len(parts) >= 3:
+                    file_stats.append(parts)
+                j += 1
+
+            # Process file stats for current commit
+            if current_commit:
+                lines_added = 0
+                lines_deleted = 0
+                lines_modified = 0
+                files_changed = []
+
+                for file_stat in file_stats:
                     try:
-                        line = next(iterator)
-                    except StopIteration:
-                        is_active = False
-                        break
-                    if line == "---COMMIT END---":
-                        at_commit_end = True
-                        break
-                    message.append(line)
-                current_commit["message"] = "".join(
-                    message[0] + "\n" + "\n".join(message[1:])
-                    if len(message) > 1
-                    else message[0]
-                )
-
-        if at_commit_end:
-            # Calculate file stats which is after commit
-            lines_added = 0
-            lines_deleted = 0
-            lines_modified = 0
-            files_changed = []
-            while True:
-                try:
-                    line = next(iterator)
-                except StopIteration:
-                    is_active = False
-                    break
-                if line == "":
-                    break
-                parts = line.strip().split("\t")
-                if len(parts) >= 2:
-                    files.append(parts)
-
-            for file_stats in files:
-                if len(file_stats) >= 3:
-                    try:
-                        added = int(file_stats[0]) if file_stats[0] != "-" else 0
-                        deleted = int(file_stats[1]) if file_stats[1] != "-" else 0
+                        added = int(file_stat[0]) if file_stat[0] != "-" else 0
+                        deleted = int(file_stat[1]) if file_stat[1] != "-" else 0
                         lines_added += added
                         lines_deleted += deleted
                         lines_modified += added + deleted
+                        files_changed.append(file_stat[2])
                     except ValueError:
                         continue
-                    files_changed.append(file_stats[2])
-            current_commit["lines_added"] = lines_added
-            current_commit["lines_deleted"] = lines_deleted
-            current_commit["lines_modified"] = lines_modified
-            current_commit["files_changed"] = files_changed
 
-            # Replace with replacement character (�) if it is a string value
-            current_commit = {
-                k: (
-                    v.encode("utf-8", "replace").decode("utf-8")
-                    if isinstance(v, str)
-                    else v
-                )
-                for k, v in current_commit.items()
-            }
-            commits.append(current_commit)
-            at_commit_end = False
+                current_commit["lines_added"] = lines_added
+                current_commit["lines_deleted"] = lines_deleted
+                current_commit["lines_modified"] = lines_modified
+                current_commit["files_changed"] = files_changed
+
+                safe_encoded_commit = {
+                    k: safe_encode(v) for k, v in current_commit.items()
+                }
+                commits.append(safe_encoded_commit)
+
+            # Skip processed file stats
+            i = j
             continue
+
+        # Parse commit details
+        elif current_commit is not None:
+            # Hash
+            if "hash" not in current_commit:
+                current_commit["hash"] = line.strip()
+            # Author name
+            elif "author_name" not in current_commit:
+                current_commit["author_name"] = line.strip()
+            # Author email
+            elif "author_email" not in current_commit:
+                current_commit["author_email"] = line.strip()
+            # Date
+            elif "date" not in current_commit:
+                try:
+                    dt = datetime.strptime(line.strip(), "%Y-%m-%d %H:%M:%S %z")
+                    current_commit["date"] = dt
+                except ValueError:
+                    # Handle potential date format issues
+                    current_commit["date"] = line.strip()
+            # Commit message
+            elif "message" not in current_commit:
+                message_lines = [line]
+                i += 1
+
+                while i < len(lines) and lines[i] != "---COMMIT END---":
+                    message_lines.append(lines[i])
+                    i += 1
+
+                # Join message lines, handling empty messages
+                if len(message_lines) > 1:
+                    message = message_lines[0] + "\n" + "\n".join(message_lines[1:])
+                else:
+                    message = message_lines[0]
+
+                current_commit["message"] = message
+
+                i -= 1  # Adjust index since we'll increment at the end of the loop
+
+        i += 1
 
     return commits
 
@@ -209,8 +253,9 @@ if __name__ == "__main__":
 
     df = df.select(extractor(df["url"]).alias("commit"))
     df = df.select(daft.col("commit").struct.get("*"))
+
     files = df.write_parquet(
-        "s3://eventual-data-test-bucket/HamachiRecruiterData/raw_commits"
+        "s3://eventual-data-test-bucket/HamachiRecruiterData/raw_commits4"
     )
     print(f"Wrote files to commit_data_files")
     print(files)
