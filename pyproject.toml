@@ -18,4 +18,7 @@ dependencies = [
     "pydantic>=2.10.6",
     "pygithub>=2.6.1",
     "ray>=2.43.0",
+    "duckdb>=1.2.1",
+    "numpy>=2.2.3",
+    "pandas>=2.2.3",
 ]
