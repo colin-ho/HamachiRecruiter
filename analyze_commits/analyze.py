@@ -105,7 +105,7 @@ def analyze_commit_message(
     # Limit concurrent requests to 5 (or adjust as needed)
     import asyncio
 
-    semaphore = asyncio.Semaphore(64)
+    semaphore = asyncio.Semaphore(256)
 
     async def analyze_with_semaphore(*args):
         async with semaphore:
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     df = df.where("lines_modified > 100 AND commit_count >= 3")
     df = df.with_column(
         "commit_analysis",
-        analyze_commit_message(
+        analyze_commit_message.with_concurrency(1)(
             df["repo_name"],
             df["commit_count"],
             df["lines_added"],
