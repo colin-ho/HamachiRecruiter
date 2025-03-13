@@ -72,7 +72,6 @@ if __name__ == "__main__":
     # Example usage
     # query = "Who are the top 10 contributors by technical ability and have contributed in 2024?"
     query = "who are the most cracked engineers that we should hire at a series a startup in san francisco?"
-
     result = analyzer.natural_language_query(query)
     print(f"\nQuery: {query}")
     print("\nResult:")

@@ -75,6 +75,8 @@ def analyze_commit_message(
            - 4-6: Competent developer
            - 1-3: Beginning developer
 
+        Think of Jeff Dean being a 10 and and a script kiddie being a 1. Refer to concrete facts in your rational rather than just giving a high level summary.
+
         Consider:
         - Repository: {repo}
         - Contribution volume: {c} commits
@@ -88,7 +90,7 @@ def analyze_commit_message(
         """
         try:
             result = await client.chat.completions.create(
-                model="accounts/fireworks/models/llama-v3p2-3b-instruct#accounts/sammy-b656e2/deployments/61bd1cb6",
+                model="accounts/fireworks/models/llama-v3p1-8b-instruct#accounts/sammy-b656e2/deployments/5ea1eded",
                 # model="accounts/fireworks/models/llama-v3p2-3b-instruct",
                 response_model=CommitQuality,
                 messages=[{"role": "user", "content": prompt}],
@@ -105,7 +107,7 @@ def analyze_commit_message(
     # Limit concurrent requests to 5 (or adjust as needed)
     import asyncio
 
-    semaphore = asyncio.Semaphore(256)
+    semaphore = asyncio.Semaphore(64)
 
     async def analyze_with_semaphore(*args):
         async with semaphore:
@@ -144,7 +146,7 @@ if __name__ == "__main__":
     df = df.where("lines_modified > 100 AND commit_count >= 3")
     df = df.with_column(
         "commit_analysis",
-        analyze_commit_message.with_concurrency(1)(
+        analyze_commit_message(
             df["repo_name"],
             df["commit_count"],
             df["lines_added"],
