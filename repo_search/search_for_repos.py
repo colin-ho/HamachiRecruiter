@@ -1,5 +1,4 @@
 import argparse
-from typing import Literal
 from dotenv import load_dotenv
 import os
 import daft
@@ -33,15 +32,15 @@ github = Github(auth=auth, per_page=100)
 )
 def get_repo_data(
     query: daft.Series,
-    sort: Literal["stars", "forks", "updated"],
-    order: Literal["asc", "desc"],
     limit: int | None = None,
 ):
     [query] = query.to_pylist()
-    print(f"Searching for repos: {query}, sort: {sort}, order: {order}, limit: {limit}")
-    repos = github.search_repositories(query=query, sort=sort, order=order)
+    print(f"Searching for repos: {query}, limit: {limit}")
+
+    repos = github.search_repositories(query=query, sort="stars", order="desc")
     total_count = repos.totalCount
     print(f"Found {total_count} repos for query: {query}")
+
     if total_count == 0:
         return [None]
 
@@ -50,7 +49,6 @@ def get_repo_data(
         print("Getting repo data for", repo.name)
         res.append(
             {
-                # Existing fields
                 "name": repo.name,
                 "owner": repo.owner.login,
                 "url": repo.clone_url,
@@ -66,11 +64,9 @@ def get_repo_data(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--runner", type=str, default="native")
-    parser.add_argument("--keywords", type=str, default="language:Java")
-    parser.add_argument("--sort", type=str, default="stars")
-    parser.add_argument("--order", type=str, default="desc")
+    parser.add_argument("--keywords", type=str, default="language:Rust")
     parser.add_argument("--limit", type=str, default="None")
-    parser.add_argument("--write-to-file", type=bool, default=False)
+    parser.add_argument("--write-to-file", type=str, default="repo_data_files")
     args = parser.parse_args()
 
     if args.runner == "native":
@@ -89,24 +85,20 @@ if __name__ == "__main__":
     queries = args.keywords.split(",")
 
     print(
-        f"Running queries: {queries}, limit: {limit}, sort: {args.sort}, order: {args.order}, runner: {args.runner}, write-to-file: {args.write_to_file}"
+        f"Finding repos for: {queries}, limit: {limit}, runner: {args.runner}, write-to-file: {args.write_to_file}"
     )
     df = daft.from_pydict({"query": queries})
 
     # Get repo data
     get_repo_data = get_repo_data.with_concurrency(1)
     repo_data = df.with_column(
-        "repo_data", get_repo_data(df["query"], args.sort, args.order, limit)
+        "repo_data", get_repo_data(df["query"], limit)
     )
     repo_data = repo_data.select(repo_data["repo_data"].struct.get("*"))
 
-    # deduplicate
-    repo_data = repo_data.groupby("url").any_value()
-
+    # write to file
     if args.write_to_file:
-        path = f"repo_data_files_{args.keywords}_{args.sort}_{args.order}_{args.limit}".replace(
-            " ", "_"
-        )
+        path = args.write_to_file
         files = repo_data.write_parquet(path)
         print(f"Wrote files to {path}")
         print(files)

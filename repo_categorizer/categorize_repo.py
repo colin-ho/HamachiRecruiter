@@ -1,3 +1,4 @@
+import argparse
 import instructor
 from pydantic import BaseModel
 from fireworks.client import AsyncFireworks
@@ -6,6 +7,8 @@ import os
 from dotenv import load_dotenv
 from typing import Literal
 import pypandoc
+import re
+
 load_dotenv()
 
 FIREWORKS_API_KEY = os.environ.get("FIREWORKS_API_KEY", "")
@@ -14,7 +17,11 @@ if not FIREWORKS_API_KEY:
         "Fireworks API key not found. Please set FIREWORKS_API_KEY in your .env file."
     )
 
-import re
+MODEL = os.environ.get("MODEL", "")
+if not MODEL:
+    raise ValueError(
+        "Model not found. Please set MODEL in your .env file."
+    )
 
 def guess_format(text):
     if text is None:
@@ -73,27 +80,22 @@ class ProjectType(BaseModel):
         )
     ),
 )
-def analyze_repo_readme_and_description(repo_name, readme, description):
-    client = AsyncFireworks(api_key=FIREWORKS_API_KEY, timeout=60)
+def analyze_repo_readme_and_description(repo_name, readme, description, max_concurrent_requests=256, max_tokens=256, max_retries=3, timeout=60):
+    client = AsyncFireworks(api_key=FIREWORKS_API_KEY, timeout=timeout)
     client = instructor.from_fireworks(client)
 
     async def analyze_single_readme_and_description(
         client, repo_name, readme, description
     ):
-        # If you guess Markdown
         try:
             format = guess_format(readme)
             if format == "markdown":
                 readme = pypandoc.convert_text(readme, to="plain", format="markdown")
-            # or rst
             elif format == "rst":
                 readme = pypandoc.convert_text(readme, to="plain", format="rst")
         except Exception as e:
-            print(f"Got error when guessing format: {e}")
             readme = readme
 
-        print(f"Analyzing repo: {repo_name}, readme format: {format}")
-        print(readme)
         prompt = f"""You are an expert at analyzing and categorizing github repositories. Your task is to analyze this github repository to:
         1. Determine the programming languages used in the repository
         2. Categorize it into exactly one of these categories:
@@ -129,30 +131,21 @@ def analyze_repo_readme_and_description(repo_name, readme, description):
         """
 
         try:
-            # result = await client.chat.completions.create(
-            #     model="gpt-4o-mini",
-            #     response_model=ProjectType,
-            #     messages=[{"role": "user", "content": prompt}],
-            #     max_tokens=128,
-            #     max_retries=3,
-            # )
             result = await client.chat.completions.create(
-                model="accounts/fireworks/models/llama-v3p1-8b-instruct#accounts/sammy-b656e2/deployments/5ea1eded",
+                model=MODEL,
                 response_model=ProjectType,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=256,
-                max_retries=3,
+                max_tokens=max_tokens,
+                max_retries=max_retries,
             )
 
-            print(f"Analyzed repo: {repo_name}, project type: {result.project_type}, languages: {result.languages}")
             return result.model_dump()
         except Exception as e:
-            print(f"Got error when validating input from model {e}")
             return None
 
     import asyncio
 
-    semaphore = asyncio.Semaphore(256)
+    semaphore = asyncio.Semaphore(max_concurrent_requests)
 
     async def analyze_with_semaphore(*args):
         async with semaphore:
@@ -167,24 +160,21 @@ def analyze_repo_readme_and_description(repo_name, readme, description):
         )
     ]
 
-    # Run coroutines concurrently and gather results
-    import asyncio
-
-    results = []
-
-    async def run_tasks():
-        return await asyncio.gather(*tasks)
-
-    results = asyncio.run(run_tasks())
+    results = asyncio.run(asyncio.gather(*tasks))
     return results
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input-path", type=str, default="repos_with_readme")
+    parser.add_argument("--runner", type=str, default="native")
+    parser.add_argument("--write-to-file", type=str, default="categorized_repos")
+    args = parser.parse_args()
+
+    print(f"Reading repos from {args.input_path}, runner: {args.runner}, write-to-file: {args.write_to_file}")
 
     daft.set_execution_config(default_morsel_size=512)
-    repo_data = daft.read_parquet(
-        "s3://eventual-data-test-bucket/HamachiRecruiterData/repos_with_owner_and_project_type_and_readme"
-    )
+    repo_data = daft.read_parquet(args.input_path)
 
     # Analyze readme and description
     readme_and_description_analyzer = (
@@ -207,11 +197,12 @@ if __name__ == "__main__":
         "project_analysis"
     )
 
-    files = repo_data_with_project_type.write_parquet(
-        "s3://eventual-data-test-bucket/HamachiRecruiterData/repos_with_project_type_and_owner_and_languages_and_readme",
-        write_mode="append",
-    )
-    print(f"Wrote files to repo_data_files_with_project_type_and_owner_and_languages_and_readme")
-    print(files)
-
-    # repo_data_with_project_type.show()
+    if args.write_to_file:
+        files = repo_data_with_project_type.write_parquet(
+            args.write_to_file,
+            write_mode="append",
+        )
+        print(f"Wrote files to {args.write_to_file}")
+        print(files)
+    else:
+        repo_data_with_project_type.show()

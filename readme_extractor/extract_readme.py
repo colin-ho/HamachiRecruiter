@@ -1,3 +1,4 @@
+import argparse
 from git import Repo
 import daft
 import tempfile
@@ -87,43 +88,31 @@ readme_patterns = [
 
 
 def extract_readme(url):
-
-    print(f"Extracting readme for {url}")
     with tempfile.TemporaryDirectory() as temp_dir:
         try:
-            print(f"Cloning repository {url}")
-            repo = Repo.clone_from(url, to_path=temp_dir, multi_options=["--sparse"])
-            print(f"Cloned repository {url}")
+            Repo.clone_from(url, to_path=temp_dir, multi_options=["--sparse"])
         except Exception as e:
-            print(f"Error cloning repository {url}: {e}")
             return None
 
         # if the directory is empty, skip
         try:
             if not os.listdir(temp_dir):
-                print(f"Repository {url} is empty, skipping")
                 return None
         except Exception as e:
-            print(f"Error checking if repository {url} is empty: {e}")
             return None
 
         # try to find a README file
         try:
-            found_readme = False
             for pattern in readme_patterns:
                 readme_path = os.path.join(temp_dir, pattern)
                 if os.path.exists(readme_path):
                     with open(readme_path, "r") as f:
-                        print(f"Found README file {readme_path} for {url}")
                         s = f.read()
                         s = s.encode("utf-8", "replace").decode("utf-8")
                         return s
         except Exception as e:
-            print(f"Error finding README file for {url}: {e}")
             return None
 
-    # if we get here, we didn't find a README file
-    print(f"No README found for {url}, returning None")
     return None
 
 
@@ -131,12 +120,6 @@ def extract_readme(url):
     return_dtype=daft.DataType.string(),
 )
 def extract_readme_to_dataframe(remote_url):
-    """
-    Extract README information from a local Git repository and return it as a pandas DataFrame.
-
-    :param repo_path: Local path to the repository (string).
-    :return: README information
-    """
     readme_list = []
 
     remote_urls = remote_url.to_pylist()
@@ -147,19 +130,39 @@ def extract_readme_to_dataframe(remote_url):
 
     return readme_list
 
-
+uncloneable_repos = [
+    "chromium",
+    "cdnjs",
+    "leetcode",
+]
 
 if __name__ == "__main__":
-    # daft.context.set_runner_ray()
-    df = daft.read_parquet(
-        "s3://eventual-data-test-bucket/HamachiRecruiterData/raw_repos"
-    ).where(~daft.col("name").is_in(["chromium", "cdnjs", "leetcode"]))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input-path", type=str, default="repo_data_files")
+    parser.add_argument("--runner", type=str, default="native")
+    parser.add_argument("--write-to-file", type=str, default="repos_with_readme")
+    args = parser.parse_args()
+
+    if args.runner == "native":
+        daft.context.set_runner_native()
+    elif args.runner == "ray":
+        daft.context.set_runner_ray()
+    else:
+        raise ValueError(f"Invalid runner: {args.runner}")
+
+    print(f"Reading repos from {args.input_path}, runner: {args.runner}, write-to-file: {args.write_to_file}")
+
+    df = daft.read_parquet(args.input_path).where(
+        ~daft.col("name").is_in(uncloneable_repos)
+    )
 
     extractor = extract_readme_to_dataframe
     df = df.with_column("readme", extractor(df["url"]))
-    files = df.write_parquet(
-        "s3://eventual-data-test-bucket/HamachiRecruiterData/repos_with_readme",
-        write_mode="append",
-    )
-    print(f"Wrote files to commit_data_files")
-    print(files)
+
+    if args.write_to_file:
+        path = args.write_to_file
+        files = df.write_parquet(path)
+        print(f"Wrote files to {path}")
+        print(files)
+    else:
+        df.show()
