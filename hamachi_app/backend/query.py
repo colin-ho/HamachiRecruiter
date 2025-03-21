@@ -12,7 +12,7 @@ class QueryAnalyzer:
         
         data_dir = os.environ.get("HAMACHI_DATA_DIR", "contributors_and_repos")   
 
-        df = daft.read_parquet(data_dir)
+        df = daft.read_parquet(data_dir, io_config=daft.io.IOConfig(s3=daft.io.S3Config(anonymous=True, region_name="us-west-2")))
         df = df.where(~daft.col('author_email').str.contains('[bot]') & ~daft.col('author_email').str.contains('@github.com')).collect()
         
         self.sess = daft.Session()
