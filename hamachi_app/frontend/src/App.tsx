@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Search } from 'lucide-react';
 import type { Developer } from './types/developer';
 import { DeveloperTable } from './components/DeveloperTable';
 import { SearchForm } from './components/SearchForm';
@@ -16,14 +15,14 @@ function App() {
     setError(null);
 
     try {
-      console.log(`127.0.0.1:8000/api/search?q=${encodeURIComponent(searchQuery)}`);
-      const response = await fetch(`http://127.0.0.1:8000/api/search?q=${encodeURIComponent(searchQuery)}`);
+      const API_URL = import.meta.env.VITE_API_URL;
+      const response = await fetch(`${API_URL}/api/search?q=${encodeURIComponent(searchQuery)}`);
       const data = await response.json();
       console.log(data);
       if (!data || data.length === 0) {
         setError('No developers found matching your search criteria.');
         setDevelopers([]);
-      } 
+      }
       else if (data.error) {
         setError(data.error);
         setDevelopers([]);
@@ -43,9 +42,9 @@ function App() {
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="text-center">
-          <img 
+          <img
             src="/assets/Hami.webp"
-            alt="Developer Search Logo" 
+            alt="Developer Search Logo"
             className="mx-auto mb-8 h-48 w-auto"
           />
           <h1 className="text-4xl font-bold text-gray-900 mb-8">
