@@ -9,8 +9,10 @@ class QueryAnalyzer:
     def __init__(self):
         key = os.environ.get("OPENAI_API_KEY")
         self.client = OpenAI(api_key=key)
+        
+        data_dir = os.environ.get("HAMACHI_DATA_DIR", "contributors_and_repos")   
 
-        df = daft.read_parquet("s3://eventual-data-test-bucket/HamachiRecruiterData/contributors_with_languages_and_project_types")
+        df = daft.read_parquet(data_dir)
         df = df.where(~daft.col('author_email').str.contains('[bot]') & ~daft.col('author_email').str.contains('@github.com')).collect()
         
         self.sess = daft.Session()

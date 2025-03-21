@@ -1,97 +1,49 @@
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import json
-from urllib.parse import parse_qs, urlparse
-from datetime import datetime, timedelta
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from candidate_analysis.query import QueryAnalyzer
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from typing import Optional
+from .query import QueryAnalyzer
 
-# Mock data
-MOCK_DEVELOPERS = [
-    {
-        "name": "Sarah Chen",
-        "email": "sarah.chen@example.com",
-        "repos": ["ai-ml-pipeline", "data-viz-toolkit", "cloud-native-apps"],
-        "last_committed": (datetime.now() - timedelta(hours=2)).isoformat(),
-        "project_type": ["Machine Learning", "Data Science", "Cloud"],
-        "technical_ability": 9,
-        "language_skill": {"Python": 9, "Go": 7, "JavaScript": 6}
-    },
-    {
-        "name": "Alex Rodriguez",
-        "email": "alex.rodriguez@example.com",
-        "repos": ["react-state-manager", "node-microservices", "typescript-utils"],
-        "last_committed": (datetime.now() - timedelta(days=1)).isoformat(),
-        "project_type": ["Frontend", "Backend", "DevOps"],
-        "technical_ability": 8,
-        "language_skill": {"TypeScript": 9, "JavaScript": 9, "Python": 6}
-    },
-    {
-        "name": "Emma Watson",
-        "email": "emma.watson@example.com",
-        "repos": ["blockchain-protocol", "smart-contracts", "defi-platform"],
-        "last_committed": (datetime.now() - timedelta(hours=5)).isoformat(),
-        "project_type": ["Blockchain", "Smart Contracts", "DeFi"],
-        "technical_ability": 9,
-        "language_skill": {"Solidity": 9, "Rust": 8, "JavaScript": 7}
-    },
-    {
-        "name": "Michael Chang",
-        "email": "michael.chang@example.com",
-        "repos": ["game-engine-3d", "physics-simulator", "vr-toolkit"],
-        "last_committed": (datetime.now() - timedelta(hours=12)).isoformat(),
-        "project_type": ["Game Development", "Graphics", "VR/AR"],
-        "technical_ability": 8,
-        "language_skill": {"C++": 9, "C#": 8, "Python": 7}
-    },
-    {
-        "name": "Lisa Kumar",
-        "email": "lisa.kumar@example.com",
-        "repos": ["mobile-payments", "cross-platform-app", "flutter-widgets"],
-        "last_committed": (datetime.now() - timedelta(hours=8)).isoformat(),
-        "project_type": ["Mobile", "Cross-platform", "Fintech"],
-        "technical_ability": 7,
-        "language_skill": {"Dart": 9, "Swift": 8, "Kotlin": 8}
-    }
-]
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
 
+# Initialize FastAPI app
+app = FastAPI(title="Hamachi Recruiter API")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Initialize query analyzer with data directory
 query_analyzer = QueryAnalyzer()
 
-class SearchHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        try:
-            # Parse query parameters
-            query = parse_qs(urlparse(self.path).query).get('q', [''])[0]
-            print(f"Query: {query}")
+@app.get("/api/search")
+@limiter.limit("10/minute", error_message="Rate limit exceeded")  # Allow 10 requests per minute per IP
+async def search(request: Request, q: Optional[str] = Query(None, description="Search query")):
+    print(f"Request: {request}")
+    try:
+        if not q:
+            return []
             
-            # Filter developers based on search query
-            results = query_analyzer.natural_language_query(query)
-
-            if results and "error" in results[0]:
-                raise Exception(results[0]["error"])
-            
-            # Send response
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            self.wfile.write(json.dumps(results).encode())
-            
-        except Exception as e:
-            print(f"Error: {e}")
-            self.send_response(500)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            self.wfile.write(json.dumps({'error': str(e)}).encode())
-
-def run_server(port=8000):
-    server_address = ('', port)
-    httpd = HTTPServer(server_address, SearchHandler)
-    print(f'Starting server on port {port}...')
-    httpd.serve_forever()
-
-if __name__ == '__main__':
-    run_server()
+        print(f"Query: {q}")
+        
+        # Get results from query analyzer
+        results = query_analyzer.natural_language_query(q)
+        
+        if results and "error" in results[0]:
+            raise HTTPException(status_code=500, detail=results[0]["error"])
+        
+        return results
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

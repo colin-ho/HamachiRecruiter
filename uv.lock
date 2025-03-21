@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.12"
 
 [[package]]
@@ -255,7 +256,7 @@ name = "click"
 version = "8.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b9/2e/0090cbf739cee7d23781ad4b89a9894a41538e4fcf4c31dcdd705b78eb8b/click-8.1.8.tar.gz", hash = "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a", size = 226593 }
 wheels = [
@@ -393,6 +394,20 @@ wheels = [
 ]
 
 [[package]]
+name = "fastapi"
+version = "0.115.11"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "starlette" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b5/28/c5d26e5860df807241909a961a37d45e10533acef95fc368066c7dd186cd/fastapi-0.115.11.tar.gz", hash = "sha256:cc81f03f688678b92600a65a5e618b93592c65005db37157147204d8924bf94f", size = 294441 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b3/5d/4d8bbb94f0dbc22732350c06965e40740f4a92ca560e90bb566f4f73af41/fastapi-0.115.11-py3-none-any.whl", hash = "sha256:32e1541b7b74602e4ef4a0260ecaf3aadf9d4f19590bba3e1bf2ac4666aa2c64", size = 94926 },
+]
+
+[[package]]
 name = "filelock"
 version = "3.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -507,6 +522,7 @@ dependencies = [
     { name = "boto3" },
     { name = "daft" },
     { name = "dotenv" },
+    { name = "fastapi" },
     { name = "fireworks-ai" },
     { name = "gitpython" },
     { name = "instructor", extra = ["bedrock"] },
@@ -515,7 +531,10 @@ dependencies = [
     { name = "pre-commit" },
     { name = "pydantic" },
     { name = "pygithub" },
+    { name = "pypandoc-binary" },
     { name = "ray" },
+    { name = "slowapi" },
+    { name = "uvicorn" },
 ]
 
 [package.metadata]
@@ -524,6 +543,7 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.37.11" },
     { name = "daft", specifier = ">=0.4.7" },
     { name = "dotenv", specifier = ">=0.9.9" },
+    { name = "fastapi", specifier = ">=0.115.11" },
     { name = "fireworks-ai", specifier = ">=0.15.12" },
     { name = "gitpython", specifier = ">=3.1.44" },
     { name = "instructor", specifier = ">=1.7.4" },
@@ -533,7 +553,10 @@ requires-dist = [
     { name = "pre-commit", specifier = ">=4.1.0" },
     { name = "pydantic", specifier = ">=2.10.6" },
     { name = "pygithub", specifier = ">=2.6.1" },
+    { name = "pypandoc-binary", specifier = ">=1.15" },
     { name = "ray", specifier = ">=2.43.0" },
+    { name = "slowapi", specifier = ">=0.1.9" },
+    { name = "uvicorn", specifier = ">=0.34.0" },
 ]
 
 [[package]]
@@ -759,6 +782,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/10/db/58f950c996c793472e336ff3655b13fbcf1e3b359dcf52dcf3ed3b52c352/jsonschema_specifications-2024.10.1.tar.gz", hash = "sha256:0f38b83639958ce1152d02a7f062902c41c8fd20d558b0c34344292d417ae272", size = 15561 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d1/0f/8910b19ac0670a0f80ce1008e5e751c4a57e14d2c4c13a482aa6079fa9d6/jsonschema_specifications-2024.10.1-py3-none-any.whl", hash = "sha256:a09a0680616357d9a0ecf05c12ad234479f549239d0f5b55f3deea67475da9bf", size = 18459 },
+]
+
+[[package]]
+name = "limits"
+version = "4.4.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "deprecated" },
+    { name = "packaging" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/87/40/d5c6f5d2f774c231f80e9c3c9f0e7ee68baf0401070f54d9d5a2f8367800/limits-4.4.1.tar.gz", hash = "sha256:ec200a20ccb7292dd77035ded417984386333418cb9f9d579090e4194e831907", size = 86826 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e9/41/32fe0bba27a62eb7d0811251f2d75140edd43c6da28ec7254d9c3de58e38/limits-4.4.1-py3-none-any.whl", hash = "sha256:9fefa114e58fa3182d64b011cf6e000fe1cc4917cf3e9cbe8f6d4b70e52498d5", size = 61717 },
 ]
 
 [[package]]
@@ -1274,6 +1311,20 @@ wheels = [
 ]
 
 [[package]]
+name = "pypandoc-binary"
+version = "1.15"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a3/59/ad3a065f512c3fc3bdf8d97d30e82fb40a292b3f38b06ef13f9c2f69df29/pypandoc_binary-1.15-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:12a43df66f59cb489a9a2659b6f049ec103132e43e4f284b7e33e7ae4dd9cadb", size = 22145734 },
+    { url = "https://files.pythonhosted.org/packages/59/d6/ef3b4927797bbf4146fdcb54b12a8ce766d077b44f37bcef0581a931a8a6/pypandoc_binary-1.15-py3-none-macosx_11_0_arm64.whl", hash = "sha256:79b215279a6470d3e2a24135826b446f44259f6abce361e31d713ac1b0b5aa69", size = 22145735 },
+    { url = "https://files.pythonhosted.org/packages/e1/74/970c50ef0f62b69afbae957d7be92072748b1f2d9b690c763c1afc81e326/pypandoc_binary-1.15-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:fa29176f4eb9eb93f555dac6926a8d53c6ab4fd2deba3a1edb002e04899b237d", size = 35362526 },
+    { url = "https://files.pythonhosted.org/packages/cb/00/dc9377725392fa3c7d5f04dc42ab012d1cd40a0a0705b6eb794444559072/pypandoc_binary-1.15-py3-none-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:df54edb00331a8fc80516c71cd81de69954512163037c3d4577c315091a0d6f6", size = 32649183 },
+    { url = "https://files.pythonhosted.org/packages/80/8b/341d6a298a97ba66b6a5f93583f03e027cb0e3322ce6d46082eca0e95c93/pypandoc_binary-1.15-py3-none-musllinux_1_1_aarch64.whl", hash = "sha256:e465a09e8aac18e8fda37516a6d1a891e51cdd1d066ab585f85a81620de575e2", size = 35362516 },
+    { url = "https://files.pythonhosted.org/packages/d9/a9/5c3c2fba01a008e7aa784268fa88b612c3ef94b89d60c1e838d96b5a1735/pypandoc_binary-1.15-py3-none-musllinux_1_1_x86_64.whl", hash = "sha256:f9ebdf92059e9c1ae5231ee193d1fdafbc0188d5ec9d5f53e95fa21a42339481", size = 32649164 },
+    { url = "https://files.pythonhosted.org/packages/fd/a7/2295d4f1036cedbd27b4d6c220fe3bc40601b618245bfd5837623ecee4cb/pypandoc_binary-1.15-py3-none-win_amd64.whl", hash = "sha256:de7a234ffb674a4e650490acc7a5986161e2fd8b5bb106f1c9ffc30d76d2cf23", size = 38577212 },
+]
+
+[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 source = { registry = "https://pypi.org/simple" }
@@ -1464,6 +1515,18 @@ wheels = [
 ]
 
 [[package]]
+name = "slowapi"
+version = "0.1.9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "limits" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a0/99/adfc7f94ca024736f061257d39118e1542bade7a52e86415a4c4ae92d8ff/slowapi-0.1.9.tar.gz", hash = "sha256:639192d0f1ca01b1c6d95bf6c71d794c3a9ee189855337b4821f7f457dddad77", size = 14028 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2b/bb/f71c4b7d7e7eb3fc1e8c0458a8979b912f40b58002b9fbf37729b8cb464b/slowapi-0.1.9-py3-none-any.whl", hash = "sha256:cfad116cfb84ad9d763ee155c1e5c5cbf00b0d47399a769b227865f5df576e36", size = 14670 },
+]
+
+[[package]]
 name = "smmap"
 version = "5.0.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1496,6 +1559,18 @@ wheels = [
 ]
 
 [[package]]
+name = "starlette"
+version = "0.46.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/04/1b/52b27f2e13ceedc79a908e29eac426a63465a1a01248e5f24aa36a62aeb3/starlette-0.46.1.tar.gz", hash = "sha256:3c88d58ee4bd1bb807c0d1acb381838afc7752f9ddaec81bbe4383611d833230", size = 2580102 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/4b/528ccf7a982216885a1ff4908e886b8fb5f19862d1962f56a3fce2435a70/starlette-0.46.1-py3-none-any.whl", hash = "sha256:77c74ed9d2720138b25875133f3a2dae6d854af2ec37dceb56aef370c1d8a227", size = 71995 },
+]
+
+[[package]]
 name = "tenacity"
 version = "9.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1509,7 +1584,7 @@ name = "tqdm"
 version = "4.67.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a8/4b/29b4ef32e036bb34e4ab51796dd745cdba7ed47ad142a9f4a1eb8e0c744d/tqdm-4.67.1.tar.gz", hash = "sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2", size = 169737 }
 wheels = [
@@ -1556,6 +1631,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/aa/63/e53da845320b757bf29ef6a9062f5c669fe997973f966045cb019c3f4b66/urllib3-2.3.0.tar.gz", hash = "sha256:f8c5449b3cf0861679ce7e0503c7b44b5ec981bec0d1d3795a07f1ba96f0204d", size = 307268 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c8/19/4ec628951a74043532ca2cf5d97b7b14863931476d117c471e8e2b1eb39f/urllib3-2.3.0-py3-none-any.whl", hash = "sha256:1cee9ad369867bfdbbb48b7dd50374c0967a0bb7710050facf0dd6911440e3df", size = 128369 },
+]
+
+[[package]]
+name = "uvicorn"
+version = "0.34.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "h11" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4b/4d/938bd85e5bf2edeec766267a5015ad969730bb91e31b44021dfe8b22df6c/uvicorn-0.34.0.tar.gz", hash = "sha256:404051050cd7e905de2c9a7e61790943440b3416f49cb409f965d9dcd0fa73e9", size = 76568 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/61/14/33a3a1352cfa71812a3a21e8c9bfb83f60b0011f5e36f2b1399d51928209/uvicorn-0.34.0-py3-none-any.whl", hash = "sha256:023dc038422502fa28a09c7a30bf2b6991512da7dcdb8fd35fe57cfc154126f4", size = 62315 },
 ]
 
 [[package]]

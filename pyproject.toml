@@ -19,4 +19,8 @@ dependencies = [
     "pygithub>=2.6.1",
     "ray>=2.43.0",
     "pre-commit>=4.1.0",
+    "fastapi>=0.115.11",
+    "uvicorn>=0.34.0",
+    "slowapi>=0.1.9",
+    "pypandoc-binary>=1.15",
 ]
