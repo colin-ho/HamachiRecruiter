@@ -1,16 +1,25 @@
+import argparse
 import daft
 
 import instructor
 from pydantic import BaseModel, Field
 
-from anthropic import AnthropicBedrock
-from fireworks.client import Fireworks, AsyncFireworks
+from fireworks.client import AsyncFireworks
 import instructor
 from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
+import asyncio
 
 load_dotenv()
+
+FIREWORKS_API_KEY = os.environ.get("FIREWORKS_API_KEY")
+if not FIREWORKS_API_KEY:
+    raise ValueError("FIREWORKS_API_KEY is not set")    
+
+MODEL = os.environ.get("MODEL")
+if not MODEL:
+    raise ValueError("MODEL is not set")
 
 class CommitQuality(BaseModel):
     impact_to_project: int = Field(
@@ -44,7 +53,7 @@ def analyze_commit_message(
     files_changed,
     message,
 ):
-    client = AsyncFireworks(api_key=os.environ.get("FIREWORKS_API_KEY"), timeout=60)
+    client = AsyncFireworks(api_key=FIREWORKS_API_KEY, timeout=60)
     client = instructor.from_fireworks(client)
 
     results = []
@@ -90,8 +99,7 @@ def analyze_commit_message(
         """
         try:
             result = await client.chat.completions.create(
-                model="accounts/fireworks/models/llama-v3p1-8b-instruct#accounts/sammy-b656e2/deployments/5ea1eded",
-                # model="accounts/fireworks/models/llama-v3p2-3b-instruct",
+                model=MODEL,
                 response_model=CommitQuality,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=128,
@@ -103,9 +111,6 @@ def analyze_commit_message(
         except Exception as e:
             print(f"Got error when validating input from model {e}")
             return None
-
-    # Limit concurrent requests to 5 (or adjust as needed)
-    import asyncio
 
     semaphore = asyncio.Semaphore(64)
 
@@ -126,22 +131,27 @@ def analyze_commit_message(
         )
     ]
 
-    # Run coroutines concurrently and gather results
-    import asyncio
-
-    results = []
-
-    async def run_tasks():
-        return await asyncio.gather(*tasks)
-
-    results = asyncio.run(run_tasks())
+    results = asyncio.run(asyncio.gather(*tasks))
     return results
 
 
 if __name__ == "__main__":
-    df = daft.read_parquet(
-        "s3://eventual-data-test-bucket/HamachiRecruiterData/contributer_raw2/"
-    )
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input-path", type=str, default="raw_contributors")
+    parser.add_argument("--runner", type=str, default="native")
+    parser.add_argument("--write-to-file", type=str, default="analyzed_contributors")
+    args = parser.parse_args()
+
+    if args.runner == "native":
+        daft.context.set_runner_native()
+    elif args.runner == "ray":
+        daft.context.set_runner_ray()
+    else:
+        raise ValueError(f"Invalid runner: {args.runner}")
+    
+    print(f"Reading contributors from {args.input_path}, runner: {args.runner}, writing to {args.write_to_file}")
+
+    df = daft.read_parquet(args.input_path)
     # we only care about folks who have contributed at least 100 lines of code and 3 commits
     df = df.where("lines_modified > 100 AND commit_count >= 3")
     df = df.with_column(
@@ -164,4 +174,10 @@ if __name__ == "__main__":
         }
     )
     df = df.exclude("commit_analysis")
-    df.write_parquet("s3://eventual-data-test-bucket/HamachiRecruiterData/contributer_data_enriched")
+    
+    if args.write_to_file:
+        files = df.write_parquet(args.write_to_file)
+        print(f"Wrote files to {args.write_to_file}")
+        print(files)
+    else:
+        df.show()
