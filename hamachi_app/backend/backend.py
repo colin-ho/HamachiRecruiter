@@ -55,6 +55,7 @@ async def search(request: Request, q: Optional[str] = Query(None, description="S
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
+@app.head("/")
 async def root():
     return {"message": "Hello World"}
 
