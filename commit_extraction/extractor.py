@@ -1,47 +1,12 @@
+import argparse
 from git import Repo
 from datetime import datetime
 import daft
 import tempfile
-
-test_logs = """
----COMMIT START---
-10ff6172ef20e2c478bcbdf4ee7d73aef53d85c7
-i3water
-121024123@qq.com
-2023-05-10 20:12:24 +0800
-Merge pull request #600 from blinker-iot/dev_3.0
-
-update codes, fix ESP32 support codes.
----COMMIT END---
----COMMIT START---
-efde12b5070fd7d2c01efa4c224eff29a2e82ecf
-i3water
-121024123@qq.com
-2023-05-10 20:09:23 +0800
-update codes, fix ESP32 support codes.
-
----COMMIT END---
-1	1	library.json
-1	1	library.properties
-1	1	src/Blinker/BlinkerConfig.h
-10	10	src/modules/mqtt/Adafruit_MQTT.cpp
-"""
-
-
 from datetime import datetime
 
 
 def safe_encode(text):
-    """
-    Safely encode string values to handle potential encoding issues.
-    Replaces invalid characters with the Unicode replacement character.
-
-    Args:
-        text: The string to safely encode
-
-    Returns:
-        str: The safely encoded string
-    """
     if isinstance(text, str):
         return text.encode("utf-8", "replace").decode("utf-8")
     return text
@@ -172,32 +137,19 @@ def parse_logs(logs):
     ),
 )
 def extract_commits_to_dataframe(remote_url):
-    """
-    Extract commit information from a local Git repository and return it as a pandas DataFrame.
-
-    :param repo_path: Local path to the repository (string).
-    :return: struct of commit metadata
-    """
-
     commits_list = []
     remote_urls = remote_url.to_pylist()
-    print(f"Extracting commits for {len(remote_urls)} repos")
-    # Create a temporary directory that will be automatically cleaned up
     for url in remote_urls:
         with tempfile.TemporaryDirectory() as temp_dir:
             try:
-                print(f"Cloning repository {url}")
                 repo = Repo.clone_from(
                     url, to_path=temp_dir, multi_options=["--no-checkout"]
                 )
                 remote_url = repo.remotes.origin.url
-                print(f"Cloned repository {url}")
             except Exception as e:
-                print(f"Error cloning repository {url}: {e}")
                 continue
 
             try:
-                print(f"Extracting owner and repo name from {remote_url}")
                 # Extract owner and repo name from remote URL
                 # Handle both HTTPS and SSH URLs
                 if remote_url.startswith("https://"):
@@ -208,13 +160,10 @@ def extract_commits_to_dataframe(remote_url):
                     parts = remote_url.split(":")[1].split("/")
                     owner = parts[0]
                     repo_name = parts[1].replace(".git", "")
-                print(f"Extracted owner and repo name from {remote_url}")
             except Exception as e:
-                print(f"Error extracting owner and repo name from {remote_url}: {e}")
                 continue
 
             try:
-                print(f"Parsing logs for {url}")
                 logs = repo.git.log(
                     "--pretty=format:---COMMIT START---%n%H%n%an%n%ae%n%ai%n%B%n---COMMIT END---",
                     "--date=iso",
@@ -227,26 +176,42 @@ def extract_commits_to_dataframe(remote_url):
                     log["repo_owner"] = owner
                     log["url"] = url
                 commits_list.extend(parsed_logs)
-                print(f"Parsed logs for {url}")
             except Exception as e:
-                print(f"Error parsing logs for {url}: {e}")
                 continue
 
     return commits_list
 
+repo_blacklist = [
+    "chromium",
+    "cdnjs",
+    "leetcode",
+    "aws-sdk-java",
+    "languagetool",
+]
 
 if __name__ == "__main__":
-    daft.context.set_runner_ray()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input-path", type=str, default="repo_data_files")
+    parser.add_argument("--runner", type=str, default="native")
+    parser.add_argument("--partition-size", type=int, default=1024)
+    parser.add_argument("--write-to-file", type=str, default="raw_commits")
+    args = parser.parse_args()
+
+    if args.runner == "native":
+        daft.context.set_runner_native()
+    elif args.runner == "ray":
+        daft.context.set_runner_ray()
+    else:
+        raise ValueError(f"Invalid runner: {args.runner}")
+
+    print(f"Reading repos from {args.input_path}, runner: {args.runner}, write-to-file: {args.write_to_file}")
+
     df = (
-        daft.read_parquet(
-            "s3://eventual-data-test-bucket/HamachiRecruiterData/raw_repos"
-        )
+        daft.read_parquet(args.input_path)
         .where(
-            ~daft.col("name").is_in(
-                ["chromium", "cdnjs", "leetcode", "aws-sdk-java", "languagetool"]
-            )
+            ~daft.col("name").is_in(repo_blacklist)
         )
-        .into_partitions(1024)
+        .into_partitions(args.partition_size)
     )
 
     extractor = extract_commits_to_dataframe
@@ -254,8 +219,10 @@ if __name__ == "__main__":
     df = df.select(extractor(df["url"]).alias("commit"))
     df = df.select(daft.col("commit").struct.get("*"))
 
-    files = df.write_parquet(
-        "s3://eventual-data-test-bucket/HamachiRecruiterData/raw_commits"
-    )
-    print(f"Wrote files to commit_data_files")
-    print(files)
+    if args.write_to_file:
+        path = args.write_to_file
+        files = df.write_parquet(path)
+        print(f"Wrote files to {path}")
+        print(files)
+    else:
+        df.show()
