@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { Developer } from './types/developer';
 import { DeveloperTable } from './components/DeveloperTable';
 import { SearchForm } from './components/SearchForm';
-
+import hami from './assets/Hami.webp';
 function App() {
   const [searchQuery, setSearchQuery] = useState('The best Rust developers who work in data processing');
   const [developers, setDevelopers] = useState<Developer[]>([]);
@@ -15,7 +15,7 @@ function App() {
     setError(null);
 
     try {
-      const API_URL = process.env.BACKEND_URL || 'http://localhost:8000';
+      const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
       const response = await fetch(`${API_URL}/api/search?q=${encodeURIComponent(searchQuery)}`);
       const data = await response.json();
       console.log(data);
@@ -43,7 +43,7 @@ function App() {
       <div className="max-w-7xl mx-auto">
         <div className="text-center">
           <img
-            src="/assets/Hami.webp"
+            src={hami}
             alt="Developer Search Logo"
             className="mx-auto mb-8 h-48 w-auto"
           />

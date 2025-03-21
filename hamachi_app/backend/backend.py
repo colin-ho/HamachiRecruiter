@@ -12,9 +12,6 @@ from .query import QueryAnalyzer
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
 
-# Get port from environment variable or default to 8000
-PORT = int(os.environ.get("PORT", 8000))
-
 # Initialize FastAPI app
 app = FastAPI(title="Hamachi Recruiter API")
 app.state.limiter = limiter
@@ -55,9 +52,5 @@ async def search(request: Request, q: Optional[str] = Query(None, description="S
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
-@app.head("/")
 async def root():
     return {"message": "Hello World"}
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=PORT)
