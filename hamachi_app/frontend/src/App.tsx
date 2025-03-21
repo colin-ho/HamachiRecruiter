@@ -15,7 +15,7 @@ function App() {
     setError(null);
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL;
+      const API_URL = process.env.BACKEND_URL || 'http://localhost:8000';
       const response = await fetch(`${API_URL}/api/search?q=${encodeURIComponent(searchQuery)}`);
       const data = await response.json();
       console.log(data);

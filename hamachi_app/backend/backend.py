@@ -5,6 +5,8 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from typing import Optional
 import os
+
+import uvicorn
 from .query import QueryAnalyzer
 
 # Initialize rate limiter
@@ -51,3 +53,10 @@ async def search(request: Request, q: Optional[str] = Query(None, description="S
     except Exception as e:
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/")
+async def root():
+    return {"message": "Hello World"}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
