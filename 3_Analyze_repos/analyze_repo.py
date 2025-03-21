@@ -168,7 +168,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input-path", type=str, default="repos_with_readme")
     parser.add_argument("--runner", type=str, default="native")
-    parser.add_argument("--write-to-file", type=str, default="categorized_repos")
+    parser.add_argument("--write-to-file", action="store_true")
+    parser.add_argument("--output-path", type=str, default="analyzed_repos")
     args = parser.parse_args()
 
     print(f"Reading repos from {args.input_path}, runner: {args.runner}, write-to-file: {args.write_to_file}")
@@ -199,10 +200,10 @@ if __name__ == "__main__":
 
     if args.write_to_file:
         files = repo_data_with_project_type.write_parquet(
-            args.write_to_file,
+            args.output_path,
             write_mode="append",
         )
-        print(f"Wrote files to {args.write_to_file}")
+        print(f"Wrote files to {args.output_path}")
         print(files)
     else:
         repo_data_with_project_type.show()

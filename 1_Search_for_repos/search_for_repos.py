@@ -66,7 +66,8 @@ if __name__ == "__main__":
     parser.add_argument("--runner", type=str, default="native")
     parser.add_argument("--keywords", type=str, default="language:Rust")
     parser.add_argument("--limit", type=str, default="None")
-    parser.add_argument("--write-to-file", type=str, default="repo_data_files")
+    parser.add_argument("--write-to-file", action="store_true")
+    parser.add_argument("--output-path", type=str, default="repo_data_files")
     args = parser.parse_args()
 
     if args.runner == "native":
@@ -98,7 +99,7 @@ if __name__ == "__main__":
 
     # write to file
     if args.write_to_file:
-        path = args.write_to_file
+        path = args.output_path
         files = repo_data.write_parquet(path)
         print(f"Wrote files to {path}")
         print(files)

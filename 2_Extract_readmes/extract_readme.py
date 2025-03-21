@@ -140,7 +140,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input-path", type=str, default="repo_data_files")
     parser.add_argument("--runner", type=str, default="native")
-    parser.add_argument("--write-to-file", type=str, default="repos_with_readme")
+    parser.add_argument("--write-to-file", action="store_true")
+    parser.add_argument("--output-path", type=str, default="repos_with_readme")
     args = parser.parse_args()
 
     if args.runner == "native":
@@ -160,7 +161,7 @@ if __name__ == "__main__":
     df = df.with_column("readme", extractor(df["url"]))
 
     if args.write_to_file:
-        path = args.write_to_file
+        path = args.output_path
         files = df.write_parquet(path)
         print(f"Wrote files to {path}")
         print(files)

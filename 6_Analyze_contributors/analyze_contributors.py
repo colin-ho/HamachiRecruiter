@@ -139,7 +139,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input-path", type=str, default="raw_contributors")
     parser.add_argument("--runner", type=str, default="native")
-    parser.add_argument("--write-to-file", type=str, default="analyzed_contributors")
+    parser.add_argument("--write-to-file", action="store_true")
+    parser.add_argument("--output-path", type=str, default="analyzed_contributors")
     args = parser.parse_args()
 
     if args.runner == "native":
@@ -176,8 +177,8 @@ if __name__ == "__main__":
     df = df.exclude("commit_analysis")
     
     if args.write_to_file:
-        files = df.write_parquet(args.write_to_file)
-        print(f"Wrote files to {args.write_to_file}")
+        files = df.write_parquet(args.output_path)
+        print(f"Wrote files to {args.output_path}")
         print(files)
     else:
         df.show()
