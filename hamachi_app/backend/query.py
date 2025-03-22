@@ -3,6 +3,8 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 from daft import col
+import json
+from typing import Dict, List, Any, Union
 load_dotenv()
 
 class QueryAnalyzer:
@@ -21,10 +23,31 @@ class QueryAnalyzer:
         # self.conn = duckdb.connect()
         # self.conn.execute("CREATE TABLE contributions AS SELECT * FROM read_parquet('data/demo-analyzed-data-10k-v2/716ae28b-bfbb-4fcb-ba34-76daa2777df5-0.parquet')")
 
-    def natural_language_query(self, query: str) -> str:
-        # First ask OpenAI to convert natural language to SQL
-        system_prompt = """You are an expert at converting natural language questions into SQL queries.
-        The database has a table about contributors to open source projects called 'contributions' with these columns:
+    def natural_language_query(self, query: str) -> Union[List[Dict[str, Any]], List[Dict[str, str]]]:
+        # Define the agent's tools
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "execute_sql_query",
+                    "description": "Execute a SQL query on the contributions database",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "sql_query": {
+                                "type": "string",
+                                "description": "The SQL query to execute"
+                            }
+                        },
+                        "required": ["sql_query"]
+                    }
+                }
+            }
+        ]
+        
+        # Define the agent's system prompt
+        system_prompt = """You are an AI assistant that helps users find information about open source contributors.
+        You have access to a database with a table called 'contributions' that contains the following columns:
         - author_email: string
         - author_name: string 
         - email_count: int
@@ -39,43 +62,48 @@ class QueryAnalyzer:
         - technical_ability: float (1-10 score)
         - languages: string (multiple values separated by '|', all values are lowercase and normalized)
         - project_type: string (multiple values separated by '|', possible values are lowercase and normalized: [web_development, data_processing, dev_ops, mobile_development, machine_learning, crypto, artificial_intelligence, game_development, cloud_computing, security, developer_tools])
-        - repo: string (case sensitive, in the format of owner/repo. Note that the question may not specify the owner.
+        - repo: string (case sensitive, in the format of owner/repo)
 
-        Convert the following question into a SQL query:
-
-        - Try to show other metadata such as what repo they contribute to and the reason when it is possible.
-        - the output schema should always be in this order: [author_name, author_email, commit_count, impact_to_project, technical_ability, languages, project_type, repo, reason, first_commit, last_commit, lines_modified]
-        - we have a very simple SQL parser so please AVOID complex SQL syntax
-        - keep the SQL query as simple as possible
-        - avoid use of the `ANY` operator
-        - when comparing dates, make sure to cast string literals to timestamps using CAST('2024-01-01' AS TIMESTAMP) format
-        - use >= for "after" or "since" comparisons and <= for "before" comparisons
-        - for date ranges, use BETWEEN CAST('2024-01-01' AS TIMESTAMP) AND CAST('2024-12-31' AS TIMESTAMP)
-        - unless specified otherwise, limit results to top 100 candidates ordered by technical_ability DESC, impact_to_project DESC, commit_count DESC
-        - project_type must be one or more of: web_development, data_processing, dev_ops, mobile_development, machine_learning, crypto, artificial_intelligence, game_development, cloud_computing, security, developer_tools. However, the user may not specify the exact project types in this table, they might specify broader or adjacent project types. 
+        When creating SQL queries:
+        - The output schema should always be in this order: [author_name, author_email, commit_count, impact_to_project, technical_ability, languages, project_type, repo, reason, first_commit, last_commit, lines_modified]
+        - Keep the SQL query as simple as possible and avoid complex syntax
+        - Avoid use of the `ANY` operator
+        - When comparing dates, cast string literals to timestamps using CAST('2024-01-01' AS TIMESTAMP) format
+        - Use >= for "after" or "since" comparisons and <= for "before" comparisons
+        - For date ranges, use BETWEEN CAST('2024-01-01' AS TIMESTAMP) AND CAST('2024-12-31' AS TIMESTAMP)
+        - Unless specified otherwise, limit results to top 100 candidates ordered by technical_ability DESC, impact_to_project DESC, commit_count DESC
+        - Project_type must be one of the values listed above, but users may use broader or adjacent terms
+        
+        You must use the execute_sql_query function to answer user questions.
         """
 
+        # Create the agent
         response = self.client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": query},
+                {"role": "user", "content": query}
             ],
+            tools=tools,
+            tool_choice={"type": "function", "function": {"name": "execute_sql_query"}}
         )
 
-        # Strip any markdown code block formatting from the response
-        llm_response = (
-            response.choices[0].message.content.strip("`").replace("sql", "").strip()
-        )
-        print(f"SQL Query:\n{llm_response}")
-        # if it doesn't start with "SELECT" or "select" then it's invalid
-        if not llm_response.lower().startswith("select"):
+        # Extract the SQL query from the agent's response
+        tool_calls = response.choices[0].message.tool_calls
+        if not tool_calls:
+            return [{"error": "Unable to generate a SQL query. Please try rephrasing your question."}]
+        
+        sql_query = json.loads(tool_calls[0].function.arguments).get("sql_query")
+        print(f"SQL Query:\n{sql_query}")
+        
+        # Validate the SQL query
+        if not sql_query or not sql_query.lower().strip().startswith("select"):
             return [{"error": "Unable to answer question. Please ask only questions about open source project contributors. If we made a mistake, please file an issue at https://github.com/colin-ho/HamachiRecruiter/issues"}]
 
         # Execute the SQL query
         try:
-            result = self.sess.sql(llm_response)
-            result_with_struct= result.with_column(
+            result = self.sess.sql(sql_query)
+            result_with_struct = result.with_column(
                 "repo", daft.struct(
                     col("commit_count"),
                     col("impact_to_project"),
