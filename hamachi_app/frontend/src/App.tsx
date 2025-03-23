@@ -3,6 +3,7 @@ import type { Developer } from './types/developer';
 import { DeveloperTable } from './components/DeveloperTable';
 import { SearchForm } from './components/SearchForm';
 import hami from './assets/Hami.webp';
+
 function App() {
   const [searchQuery, setSearchQuery] = useState('The best Rust developers who work in data processing');
   const [developers, setDevelopers] = useState<Developer[]>([]);

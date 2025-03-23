@@ -15,7 +15,7 @@ class QueryAnalyzer:
         data_dir = os.environ.get("HAMACHI_DATA_DIR", "contributors_and_repos")   
 
         df = daft.read_parquet(data_dir, io_config=daft.io.IOConfig(s3=daft.io.S3Config(anonymous=True, region_name="us-west-2")))
-        df = df.where(~daft.col('author_email').str.contains('[bot]') & ~daft.col('author_email').str.contains('@github.com')).collect()
+        df = df.where(~daft.col('author_email').str.contains('[bot]') & ~daft.col('author_email').str.contains('@github.com') & daft.col('author_email').__ne__('')).collect()
         
         self.sess = daft.Session()
         self.sess.create_temp_table("contributions", df)
@@ -48,31 +48,34 @@ class QueryAnalyzer:
         # Define the agent's system prompt
         system_prompt = """You are an AI assistant that helps users find information about open source contributors.
         You have access to a database with a table called 'contributions' that contains the following columns:
-        - author_email: string
-        - author_name: string 
-        - email_count: int
-        - commit_count: int
-        - lines_added: int
-        - lines_deleted: int
-        - lines_modified: int
-        - first_commit: datetime
-        - last_commit: datetime
-        - reason: string
-        - impact_to_project: float (1-10 score)
-        - technical_ability: float (1-10 score)
-        - languages: string (multiple values separated by '|', all values are lowercase and normalized)
-        - project_type: string (multiple values separated by '|', possible values are lowercase and normalized: [web_development, data_processing, dev_ops, mobile_development, machine_learning, crypto, artificial_intelligence, game_development, cloud_computing, security, developer_tools])
-        - repo: string (case sensitive, in the format of owner/repo)
+        - author_email: string (lowercase). The email address of the contributor.
+        - author_name: string (lowercase). The name of the contributor.
+        - email_count: int. The number of emails the contributor has.
+        - commit_count: int. The number of commits the contributor has made.
+        - lines_added: int. The number of lines added by the contributor.
+        - lines_deleted: int. The number of lines deleted by the contributor.
+        - lines_modified: int. The number of lines modified by the contributor.
+        - first_commit: datetime. The date of the contributor's first commit.
+        - last_commit: datetime. The date of the contributor's last commit.
+        - reason: string. The reasoning behind the impact_to_project and technical_ability scores.
+        - impact_to_project: float (1-10 score). A score between 1 and 10 indicating the impact the contributor has on the project.
+        - technical_ability: float (1-10 score). A score between 1 and 10 indicating the technical ability of the contributor.
+        - languages: string (multiple values separated by '|', all values are lowercase and normalized). The programming languages the contributor has worked with on this project.
+        - keywords: string (multiple values separated by '|', all values are lowercase and normalized, hyphenated if keywords are compound words). The keywords associated with the project, such as the domain of the project, the purpose of the project, frameworks and libraries used, etc.
+        - repo: string (case sensitive, in the format of owner/repo). The repository the contributor has worked on.
 
         When creating SQL queries:
-        - The output schema should always be in this order: [author_name, author_email, commit_count, impact_to_project, technical_ability, languages, project_type, repo, reason, first_commit, last_commit, lines_modified]
+        - The output schema should always be in this order: [author_name, author_email, commit_count, impact_to_project, technical_ability, languages, keywords, repo, reason, first_commit, last_commit, lines_modified]
         - Keep the SQL query as simple as possible and avoid complex syntax
         - Avoid use of the `ANY` operator
         - When comparing dates, cast string literals to timestamps using CAST('2024-01-01' AS TIMESTAMP) format
         - Use >= for "after" or "since" comparisons and <= for "before" comparisons
         - For date ranges, use BETWEEN CAST('2024-01-01' AS TIMESTAMP) AND CAST('2024-12-31' AS TIMESTAMP)
-        - Unless specified otherwise, limit results to top 100 candidates ordered by technical_ability DESC, impact_to_project DESC, commit_count DESC
-        - Project_type must be one of the values listed above, but users may use broader or adjacent terms
+        - Unless specified otherwise, order results by technical_ability DESC, impact_to_project DESC, commit_count DESC
+        - For pipe-separated fields, use appropriate pattern matching techniques
+        - When searching for keywords, take note that keywords are hyphenated if keywords are compound words.
+        - Note that the repo is in the format of owner/repo. This means that you can use the LIKE operator to search for repos by owner or repo name.
+        - When adding filters on string columns i.e. author_name, author_email, repo, make sure to lowercase the column.
         
         You must use the execute_sql_query function to answer user questions.
         """
@@ -118,10 +121,13 @@ class QueryAnalyzer:
             result_dedupped = result_with_struct.groupby('author_email').agg(
                 daft.col('author_name').any_value(),
                 daft.col('languages').any_value(),
-                daft.col('project_type').any_value(),
-                daft.col('reason').any_value(),
+                daft.col('keywords').any_value(),
+                daft.col('commit_count').sum(),
+                daft.col('impact_to_project').mean(),
+                daft.col('technical_ability').mean(),
+                daft.col('reason').agg_list(),
                 daft.col('repo').agg_list(),
-            )
+            ).sort(by=['technical_ability', 'impact_to_project', 'commit_count'], desc=[True, True, True]).limit(100)
             return result_dedupped.to_pylist()
         except Exception as e:
             print(f"Error executing query: {str(e)}")

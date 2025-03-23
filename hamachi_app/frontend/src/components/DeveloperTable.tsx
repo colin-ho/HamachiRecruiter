@@ -1,24 +1,9 @@
-import React, { useRef } from "react";
+import { useRef } from "react";
 import type { Developer, RepoDetails } from "../types/developer";
 
 interface DeveloperTableProps {
   developers: Developer[];
 }
-
-// Color mapping for project types
-const PROJECT_TYPE_COLORS: Record<string, { bg: string; text: string }> = {
-  web_development: { bg: "bg-blue-100", text: "text-blue-800" },
-  data_processing: { bg: "bg-green-100", text: "text-green-800" },
-  dev_ops: { bg: "bg-purple-100", text: "text-purple-800" },
-  mobile_development: { bg: "bg-yellow-100", text: "text-yellow-800" },
-  machine_learning: { bg: "bg-pink-100", text: "text-pink-800" },
-  crypto: { bg: "bg-indigo-100", text: "text-indigo-800" },
-  artificial_intelligence: { bg: "bg-red-100", text: "text-red-800" },
-  game_development: { bg: "bg-orange-100", text: "text-orange-800" },
-  cloud_computing: { bg: "bg-cyan-100", text: "text-cyan-800" },
-  security: { bg: "bg-gray-100", text: "text-gray-800" },
-  developer_tools: { bg: "bg-lime-100", text: "text-lime-800" },
-};
 
 // Color mapping for common programming languages
 const LANGUAGE_COLORS: Record<string, { bg: string; text: string }> = {
@@ -73,6 +58,13 @@ const getAverageTechnicalAbility = (repos: RepoDetails[]): number => {
   return parseFloat((sum / repos.length).toFixed(1));
 };
 
+// Helper to calculate average impact to project across repos
+const getAverageImpactToProject = (repos: RepoDetails[]): number => {
+  if (repos.length === 0) return 0;
+  const sum = repos.reduce((acc, repo) => acc + repo.impact_to_project, 0);
+  return parseFloat((sum / repos.length).toFixed(1));
+};
+
 // Helper to get total commit count across repos
 const getTotalCommitCount = (repos: RepoDetails[]): number => {
   return repos.reduce((acc, repo) => acc + repo.commit_count, 0);
@@ -80,7 +72,7 @@ const getTotalCommitCount = (repos: RepoDetails[]): number => {
 
 export function DeveloperTable({ developers }: DeveloperTableProps) {
   const tableRef = useRef<HTMLDivElement>(null);
-  
+
   return (
     <div className="overflow-x-auto rounded-lg shadow-lg border border-gray-200 relative" ref={tableRef}>
       <table className="min-w-full bg-white rounded-lg overflow-hidden">
@@ -90,16 +82,16 @@ export function DeveloperTable({ developers }: DeveloperTableProps) {
               Developer
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-              Project Types
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
               Repos
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
               Languages
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-              Technical Ability
+              Average Technical Ability
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+              Average Impact to Project
             </th>
           </tr>
         </thead>
@@ -107,10 +99,10 @@ export function DeveloperTable({ developers }: DeveloperTableProps) {
           {developers.map((dev) => {
             const totalCommits = getTotalCommitCount(dev.repo);
             const avgTechnicalAbility = getAverageTechnicalAbility(dev.repo);
-            
+            const avgImpactToProject = getAverageImpactToProject(dev.repo);
             return (
-              <tr 
-                key={dev.author_email} 
+              <tr
+                key={dev.author_email}
                 className="hover:bg-gray-50 transition-colors duration-150 relative"
               >
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -129,30 +121,13 @@ export function DeveloperTable({ developers }: DeveloperTableProps) {
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <div className="flex flex-wrap gap-1">
-                    {dev.project_type.split("|")
-                      .sort()
-                      .map((type, i) => {
-                        const { bg, text } = getTagColor(type, PROJECT_TYPE_COLORS);
-                        return (
-                          <span
-                            key={i}
-                            className={`px-2 py-1 text-xs font-medium rounded-full ${bg} ${text}`}
-                          >
-                            {type.replace(/_/g, " ")}
-                          </span>
-                        );
-                      })}
-                  </div>
-                </td>
-                <td className="px-6 py-4">
                   <div className="flex flex-col space-y-2">
                     {dev.repo.map((repoDetail, index) => (
                       <div key={index} className="text-sm text-gray-700 bg-gray-50 px-3 py-1 rounded-lg border border-gray-200 relative group">
-                        <a 
-                          href={`https://github.com/${repoDetail.repo}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
+                        <a
+                          href={`https://github.com/${repoDetail.repo}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="text-gray-600 hover:text-gray-800 underline"
                         >
                           {repoDetail.repo}
@@ -201,14 +176,32 @@ export function DeveloperTable({ developers }: DeveloperTableProps) {
                       {avgTechnicalAbility.toFixed(1)}/10
                     </span>
                   </div>
-                  
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap relative group">
+                  <div className="flex items-center">
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div
+                        className={`${getAbilityColor(avgImpactToProject)} h-3 rounded-full transition-all duration-300`}
+                        style={{
+                          width: `${(avgImpactToProject / 10) * 100}%`,
+                        }}
+                      ></div>
+                    </div>
+                    <span className="ml-2 text-sm font-medium text-gray-700">
+                      {avgImpactToProject.toFixed(1)}/10
+                    </span>
+                  </div>
+
+
                   {/* Reason tooltip on hover */}
                   {dev.reason && (
                     <div className="absolute right-full mr-2 top-1/2 z-10 w-64 bg-gray-900 text-white p-3 rounded-lg shadow-lg 
                                   opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform -translate-y-1/2 max-h-48 overflow-y-auto overflow-x-hidden">
                       <div className="text-xs space-y-1">
                         <p><span className="font-semibold">Reason:</span></p>
-                        <p className="whitespace-normal break-words">{dev.reason}</p>
+                        {dev.reason.map((r, index) => (
+                          <p key={index} className="whitespace-normal break-words">{r}</p>
+                        ))}
                       </div>
                     </div>
                   )}

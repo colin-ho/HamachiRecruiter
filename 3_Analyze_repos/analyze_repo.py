@@ -100,19 +100,30 @@ def analyze_repo_readme_and_description(repo_name, readme, description, max_conc
         README: {readme}
 
         Based on the GitHub repository details above, provide:
-        1. A list of the top 2 programming languages used in this repository.
-        2. A list of relevant keywords that describe the repository.
+        1. A list of the top 2 programming languages used in this repository. Make sure to not produce more than 2 languages.
+        2. A list of the top 10 relevant keywords that describe the repository. Make sure to not produce more than 10 keywords. If the keywords are compound words, use a hyphen to join them.
         """
 
-        try:
-            result = await client.chat.completions.create(
+        from tenacity import retry, stop_after_attempt, wait_exponential
+
+        @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=60), reraise=True)
+        async def fetch_completion(client, model, prompt, max_tokens):
+            return await client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=max_tokens,
                 response_model=ProjectAnalysis,
             )
-            return result.model_dump()
+
+        try:
+            result = await fetch_completion(client, model, prompt, max_tokens)
+            print(f"Analyzed {repo_name} with {model}")
+            result_dict = result.model_dump()
+            result_dict['languages'] = sorted(result_dict['languages'])
+            result_dict['keywords'] = sorted([keyword.replace(" ", "-") for keyword in result_dict['keywords']])
+            return result_dict
         except Exception as e:
+            print(f"Error analyzing {repo_name}: {e}")
             return None
 
     semaphore = asyncio.Semaphore(max_concurrent_requests)

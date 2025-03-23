@@ -12,7 +12,7 @@ export interface Developer {
   author_name: string;
   author_email: string;
   languages: string;
-  project_type: string;
-  reason: string;
+  keywords: string;
+  reason: string[];
   repo: RepoDetails[];
 }

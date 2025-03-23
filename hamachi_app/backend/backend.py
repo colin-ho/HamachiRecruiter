@@ -4,9 +4,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from typing import Optional
-import os
 
-import uvicorn
 from .query import QueryAnalyzer
 
 # Initialize rate limiter
@@ -32,7 +30,6 @@ query_analyzer = QueryAnalyzer()
 @app.get("/api/search")
 @limiter.limit("10/minute", error_message="Rate limit exceeded")  # Allow 10 requests per minute per IP
 async def search(request: Request, q: Optional[str] = Query(None, description="Search query")):
-    print(f"Request: {request}")
     try:
         if not q:
             return []

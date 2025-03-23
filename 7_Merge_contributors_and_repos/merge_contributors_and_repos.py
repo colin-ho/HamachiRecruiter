@@ -43,7 +43,7 @@ if __name__ == "__main__":
         (col('technical_ability') * col('commit_count')).sum().alias('technical_ability_sum'),
         col('reason').agg_list()
     ).with_columns(dict(
-        author_email=col('author_email').list.join(delimiter='|'),
+        author_email=col('author_email').list.sort().list.join(delimiter='|'),
         impact_to_project=col('impact_to_project_sum') / col('commit_count'),
         technical_ability=col('technical_ability_sum') / col('commit_count'),
         reason=col('reason').list.join(delimiter='\n'),
