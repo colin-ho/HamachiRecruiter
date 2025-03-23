@@ -2,6 +2,7 @@ import argparse
 import daft
 
 import instructor
+from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
 from fireworks.client import AsyncFireworks
@@ -13,13 +14,27 @@ import asyncio
 
 load_dotenv()
 
-FIREWORKS_API_KEY = os.environ.get("FIREWORKS_API_KEY")
-if not FIREWORKS_API_KEY:
-    raise ValueError("FIREWORKS_API_KEY is not set")    
+def load_fireworks_client_and_model(timeout=60):
+    FIREWORKS_API_KEY = os.environ.get("FIREWORKS_API_KEY")
+    if not FIREWORKS_API_KEY:
+        raise ValueError("FIREWORKS_API_KEY is not set")
+    
+    FIREWORKS_MODEL = os.environ.get("FIREWORKS_MODEL")
+    if not FIREWORKS_MODEL:
+        raise ValueError("FIREWORKS_MODEL is not set")
+    
+    return instructor.from_fireworks(AsyncFireworks(api_key=FIREWORKS_API_KEY, timeout=timeout)), FIREWORKS_MODEL
 
-MODEL = os.environ.get("MODEL")
-if not MODEL:
-    raise ValueError("MODEL is not set")
+def load_openai_client_and_model(timeout=60):
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+    if not OPENAI_API_KEY:
+        raise ValueError("OPENAI_API_KEY is not set")
+    
+    OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    if not OPENAI_MODEL:
+        raise ValueError("OPENAI_MODEL is not set")
+    
+    return instructor.from_openai(AsyncOpenAI(api_key=OPENAI_API_KEY, timeout=timeout)), OPENAI_MODEL
 
 class CommitQuality(BaseModel):
     impact_to_project: int = Field(
@@ -52,9 +67,17 @@ def analyze_commit_message(
     lines_modified,
     files_changed,
     message,
+    provider="OpenAI",
+    max_concurrent_requests=64,
+    max_tokens=128,
+    max_retries=3,
 ):
-    client = AsyncFireworks(api_key=FIREWORKS_API_KEY, timeout=60)
-    client = instructor.from_fireworks(client)
+    if provider == "OpenAI":
+        client, model = load_openai_client_and_model()
+    elif provider == "Fireworks":
+        client, model = load_fireworks_client_and_model()
+    else:
+        raise ValueError(f"Invalid provider: {provider}")
 
     results = []
 
@@ -99,20 +122,19 @@ def analyze_commit_message(
         """
         try:
             result = await client.chat.completions.create(
-                model=MODEL,
+                model=model,
                 response_model=CommitQuality,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=128,
-                max_retries=3,
+                max_tokens=max_tokens,
+                max_retries=max_retries,
             )
 
-            print(result.reason)
             return result.model_dump()
         except Exception as e:
             print(f"Got error when validating input from model {e}")
             return None
 
-    semaphore = asyncio.Semaphore(64)
+    semaphore = asyncio.Semaphore(max_concurrent_requests)
 
     async def analyze_with_semaphore(*args):
         async with semaphore:
@@ -121,17 +143,20 @@ def analyze_commit_message(
     tasks = [
         analyze_with_semaphore(client, repo, c, la, ld, lm, f, msg)
         for repo, c, la, ld, lm, f, msg in zip(
-            repo_name.to_pylist(),
-            commit_count.to_pylist(),
-            lines_added.to_pylist(),
-            lines_deleted.to_pylist(),
-            lines_modified.to_pylist(),
-            files_changed.to_pylist(),
-            message.to_pylist(),
+            repo_name,
+            commit_count,
+            lines_added,
+            lines_deleted,
+            lines_modified,
+            files_changed,
+            message,
         )
     ]
 
-    results = asyncio.run(asyncio.gather(*tasks))
+    async def run_tasks():
+        return await asyncio.gather(*tasks)
+
+    results = asyncio.run(run_tasks())
     return results
 
 
@@ -150,7 +175,7 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Invalid runner: {args.runner}")
     
-    print(f"Reading contributors from {args.input_path}, runner: {args.runner}, writing to {args.write_to_file}")
+    print(f"Reading contributors from {args.input_path}, runner: {args.runner}, write-to-file: {args.write_to_file}")
 
     df = daft.read_parquet(args.input_path)
     # we only care about folks who have contributed at least 100 lines of code and 3 commits

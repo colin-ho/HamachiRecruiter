@@ -55,6 +55,7 @@ if __name__ == "__main__":
     # Step 2: Process repos data
     repos = daft.read_parquet(args.input_repos_path).exclude('readme', 'reason').with_columns(dict(
         languages=col('languages').list.join(delimiter='|').str.normalize(remove_punct=False, lowercase=True, white_space=True).str.split('|'),
+        keywords=col('keywords').list.join(delimiter='|').str.normalize(remove_punct=False, lowercase=True, white_space=True).str.split('|'),
     ))
     
     # Join contributors with repos on repo_owner and repo_name
@@ -68,13 +69,16 @@ if __name__ == "__main__":
     # Find languages that a contributor has worked with
     languages = merged.groupby('author_email').agg(
         col('languages').agg_concat(),
-        col('project_type').agg_set()
+        col('keywords').agg_concat()
     )
-    unique_languages_and_project_types = languages.with_column('languages', col('languages').list.distinct())
+    unique_languages_and_keywords = languages.with_columns(dict(
+        languages=col('languages').list.distinct(),
+        keywords=col('keywords').list.distinct()
+    ))
 
     # Join back to contributors
-    contributors_with_languages_and_project_types = contributors_dedupped.join(
-        unique_languages_and_project_types, 
+    contributors_with_languages_and_keywords = contributors_dedupped.join(
+        unique_languages_and_keywords, 
         on='author_email', 
         how='left'
     ).with_column(
@@ -82,9 +86,9 @@ if __name__ == "__main__":
     ).exclude('repo_owner', 'repo_name')
 
     # Convert lists to strings for output
-    final_contributors = contributors_with_languages_and_project_types.with_columns(dict(
+    final_contributors = contributors_with_languages_and_keywords.with_columns(dict(
         languages=col('languages').list.join(delimiter='|'),
-        project_type=col('project_type').list.join(delimiter='|')
+        keywords=col('keywords').list.join(delimiter='|')
     ))
     
     # Write the final output

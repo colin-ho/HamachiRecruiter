@@ -135,13 +135,14 @@ def parse_logs(logs):
             lines_modified=daft.DataType.uint64(),
         )
     ),
+    batch_size=1,       
 )
-def extract_commits_to_dataframe(remote_url):
+def extract_commits_to_dataframe(remote_urls):
     commits_list = []
-    remote_urls = remote_url.to_pylist()
     for url in remote_urls:
         with tempfile.TemporaryDirectory() as temp_dir:
             try:
+                print(f"[{url}] Cloning repo...")
                 repo = Repo.clone_from(
                     url, to_path=temp_dir, multi_options=["--no-checkout"]
                 )
@@ -169,7 +170,7 @@ def extract_commits_to_dataframe(remote_url):
                     "--date=iso",
                     "--numstat",
                 )
-
+                print(f"[{url}] Parsing logs...")
                 parsed_logs = parse_logs(logs)
                 for log in parsed_logs:
                     log["repo_name"] = repo_name
@@ -205,7 +206,7 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Invalid runner: {args.runner}")
 
-    print(f"Reading repos from {args.input_path}, runner: {args.runner}, write-to-file: {args.write_to_file}")
+    print(f"Extracing commits from repo files in {args.input_path}, runner: {args.runner}, write-to-file: {args.write_to_file}")
 
     df = (
         daft.read_parquet(args.input_path)
@@ -215,7 +216,7 @@ if __name__ == "__main__":
         .into_partitions(args.partition_size)
     )
 
-    extractor = extract_commits_to_dataframe
+    extractor = extract_commits_to_dataframe.with_concurrency(10)
 
     df = df.select(extractor(df["url"]).alias("commit"))
     df = df.select(daft.col("commit").struct.get("*"))

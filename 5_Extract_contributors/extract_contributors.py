@@ -16,7 +16,7 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Invalid runner: {args.runner}")
 
-    print(f"Reading commits from {args.input_path}, runner: {args.runner}, writing to {args.write_to_file}")
+    print(f"Reading commits from {args.input_path}, runner: {args.runner}, write-to-file: {args.write_to_file}")
 
     df = daft.read_parquet(args.input_path)
 

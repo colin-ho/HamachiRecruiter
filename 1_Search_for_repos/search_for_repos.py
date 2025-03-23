@@ -35,7 +35,6 @@ def get_repo_data(
     limit: int | None = None,
 ):
     [query] = query.to_pylist()
-    print(f"Searching for repos: {query}, limit: {limit}")
 
     repos = github.search_repositories(query=query, sort="stars", order="desc")
     total_count = repos.totalCount
@@ -46,7 +45,6 @@ def get_repo_data(
 
     res = []
     for repo in repos[: min(limit or total_count, total_count)]:
-        print("Getting repo data for", repo.name)
         res.append(
             {
                 "name": repo.name,
@@ -64,8 +62,8 @@ def get_repo_data(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--runner", type=str, default="native")
-    parser.add_argument("--keywords", type=str, default="language:Rust")
-    parser.add_argument("--limit", type=str, default="None")
+    parser.add_argument("--keywords", type=str, default="sashimi")
+    parser.add_argument("--limit", type=str, default="10")
     parser.add_argument("--write-to-file", action="store_true")
     parser.add_argument("--output-path", type=str, default="repo_data_files")
     args = parser.parse_args()
@@ -86,7 +84,7 @@ if __name__ == "__main__":
     queries = args.keywords.split(",")
 
     print(
-        f"Finding repos for: {queries}, limit: {limit}, runner: {args.runner}, write-to-file: {args.write_to_file}"
+        f"Searching for repos with keywords: {queries}, limit: {limit}, runner: {args.runner}, write-to-file: {args.write_to_file}"
     )
     df = daft.from_pydict({"query": queries})
 

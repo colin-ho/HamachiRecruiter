@@ -89,16 +89,20 @@ readme_patterns = [
 
 def extract_readme(url):
     with tempfile.TemporaryDirectory() as temp_dir:
+        print(f"[{url}] Cloning repo")
         try:
             Repo.clone_from(url, to_path=temp_dir, multi_options=["--sparse"])
         except Exception as e:
+            print(f"[{url}] Error cloning repo: {e}")
             return None
 
         # if the directory is empty, skip
         try:
             if not os.listdir(temp_dir):
+                print(f"[{url}] Repo is empty")
                 return None
         except Exception as e:
+            print(f"[{url}] Error checking if repo is empty: {e}")
             return None
 
         # try to find a README file
@@ -106,11 +110,13 @@ def extract_readme(url):
             for pattern in readme_patterns:
                 readme_path = os.path.join(temp_dir, pattern)
                 if os.path.exists(readme_path):
+                    print(f"[{url}] Found README file")
                     with open(readme_path, "r") as f:
                         s = f.read()
                         s = s.encode("utf-8", "replace").decode("utf-8")
                         return s
         except Exception as e:
+            print(f"[{url}] Error finding README file: {e}")
             return None
 
     return None
@@ -118,12 +124,12 @@ def extract_readme(url):
 
 @daft.udf(
     return_dtype=daft.DataType.string(),
+    batch_size=1,
 )
 def extract_readme_to_dataframe(remote_url):
     readme_list = []
 
     remote_urls = remote_url.to_pylist()
-    print(f"Extracting readmes for {len(remote_urls)} repos")
     for url in remote_urls:
         readme = extract_readme(url)
         readme_list.append(readme)
@@ -157,7 +163,7 @@ if __name__ == "__main__":
         ~daft.col("name").is_in(uncloneable_repos)
     )
 
-    extractor = extract_readme_to_dataframe
+    extractor = extract_readme_to_dataframe.with_concurrency(10)
     df = df.with_column("readme", extractor(df["url"]))
 
     if args.write_to_file:
