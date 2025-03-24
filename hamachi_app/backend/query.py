@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from daft import col
 import json
-from typing import Dict, List, Any, Union
 load_dotenv()
 
 class QueryAnalyzer:
@@ -12,10 +11,10 @@ class QueryAnalyzer:
         key = os.environ.get("OPENAI_API_KEY")
         self.client = OpenAI(api_key=key)
         
-        data_dir = os.environ.get("HAMACHI_DATA_DIR", "contributors_and_repos")   
+        data_dir = os.environ.get("HAMACHI_DATA_DIR", "contributors4")   
 
         df = daft.read_parquet(data_dir, io_config=daft.io.IOConfig(s3=daft.io.S3Config(anonymous=True, region_name="us-west-2")))
-        df = df.where(~daft.col('author_email').str.contains('[bot]') & ~daft.col('author_email').str.contains('@github.com') & daft.col('author_email').__ne__('')).collect()
+        df = df.where(~daft.col('author_email').str.contains('[bot]') & ~daft.col('author_email').str.contains('@github.com')).collect()
         
         self.sess = daft.Session()
         self.sess.create_temp_table("contributions", df)
@@ -23,24 +22,51 @@ class QueryAnalyzer:
         # self.conn = duckdb.connect()
         # self.conn.execute("CREATE TABLE contributions AS SELECT * FROM read_parquet('data/demo-analyzed-data-10k-v2/716ae28b-bfbb-4fcb-ba34-76daa2777df5-0.parquet')")
 
-    def natural_language_query(self, query: str) -> Union[List[Dict[str, Any]], List[Dict[str, str]]]:
+    def natural_language_query(self, query: str):
+        def execute_sql_query(sql_query: str):
+            result = self.sess.sql(sql_query)
+            result_with_struct = result.with_column(
+                "repo", daft.struct(
+                    col("commit_count"),
+                    col("impact_to_project"),
+                    col("technical_ability"), 
+                    col("repo"),
+                    col("first_commit").cast(daft.DataType.string()),
+                    col("last_commit").cast(daft.DataType.string()),
+                    col("lines_modified")
+                )
+            )
+            
+            result_dedupped = result_with_struct.groupby('author_email').agg(
+                daft.col('author_name').any_value(),
+                daft.col('languages').any_value(),
+                daft.col('keywords').any_value(),
+                daft.col('commit_count').sum(),
+                daft.col('impact_to_project').mean(),
+                daft.col('technical_ability').mean(),
+                daft.col('reason').agg_list(),
+                daft.col('repo').agg_list(),
+            ).sort(by=['technical_ability', 'impact_to_project', 'commit_count'], desc=[True, True, True]).limit(100)
+            
+            return result_dedupped.to_pylist()
+        
         # Define the agent's tools
         tools = [
             {
                 "type": "function",
-                "function": {
-                    "name": "execute_sql_query",
-                    "description": "Execute a SQL query on the contributions database",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "sql_query": {
-                                "type": "string",
-                                "description": "The SQL query to execute"
-                            }
-                        },
-                        "required": ["sql_query"]
-                    }
+                "name": "execute_sql_query",
+                "description": "Execute a SQL query on the contributions database",
+                "strict": True,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "sql_query": {
+                            "type": "string",
+                            "description": "The SQL query to execute"
+                        }
+                    },
+                    "required": ["sql_query"],
+                    "additionalProperties": False
                 }
             }
         ]
@@ -80,58 +106,49 @@ class QueryAnalyzer:
         You must use the execute_sql_query function to answer user questions.
         """
 
-        # Create the agent
-        response = self.client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": query}
-            ],
-            tools=tools,
-            tool_choice={"type": "function", "function": {"name": "execute_sql_query"}}
-        )
-
-        # Extract the SQL query from the agent's response
-        tool_calls = response.choices[0].message.tool_calls
-        if not tool_calls:
-            return [{"error": "Unable to generate a SQL query. Please try rephrasing your question."}]
-        
-        sql_query = json.loads(tool_calls[0].function.arguments).get("sql_query")
-        print(f"SQL Query:\n{sql_query}")
-        
-        # Validate the SQL query
-        if not sql_query or not sql_query.lower().strip().startswith("select"):
-            return [{"error": "Unable to answer question. Please ask only questions about open source project contributors. If we made a mistake, please file an issue at https://github.com/colin-ho/HamachiRecruiter/issues"}]
-
-        # Execute the SQL query
-        try:
-            result = self.sess.sql(sql_query)
-            result_with_struct = result.with_column(
-                "repo", daft.struct(
-                    col("commit_count"),
-                    col("impact_to_project"),
-                    col("technical_ability"), 
-                    col("repo"),
-                    col("first_commit").cast(daft.DataType.string()),
-                    col("last_commit").cast(daft.DataType.string()),
-                    col("lines_modified")
+        num_tries_remaining = 3
+        inputs = [{"role": "user", "content": query}]
+        tool_call = None
+        while True:
+            try:
+                response = self.client.responses.create(
+                    model="gpt-4o-mini",
+                    instructions=system_prompt,
+                    input=inputs,
+                    tools=tools,
+                    tool_choice="required"
                 )
-            )
+                # Extract the SQL query from the agent's response
+                tool_call = response.output[0]
+                inputs.append(tool_call)
+                args = json.loads(tool_call.arguments)
+                
+                sql_query = args.get("sql_query")
+                print("SQL query: ", sql_query)
+                result = execute_sql_query(sql_query)
+                
+                if len(result) == 0:
+                    print("No results found")
+                    raise Exception("No results found")
+                
+                print(f"{len(result)} results found")
+                return result
             
-            result_dedupped = result_with_struct.groupby('author_email').agg(
-                daft.col('author_name').any_value(),
-                daft.col('languages').any_value(),
-                daft.col('keywords').any_value(),
-                daft.col('commit_count').sum(),
-                daft.col('impact_to_project').mean(),
-                daft.col('technical_ability').mean(),
-                daft.col('reason').agg_list(),
-                daft.col('repo').agg_list(),
-            ).sort(by=['technical_ability', 'impact_to_project', 'commit_count'], desc=[True, True, True]).limit(100)
-            return result_dedupped.to_pylist()
-        except Exception as e:
-            print(f"Error executing query: {str(e)}")
-            return [{"error": str(e)}]
+            except Exception as e:
+                print("Error executing query: ", e, " num_tries_remaining: ", num_tries_remaining)
+                if num_tries_remaining == 0:
+                    if "No results found" in str(e):
+                        return []
+                    else:
+                        raise Exception(f"Error executing query: {str(e)}")
+                else:
+                    num_tries_remaining -= 1
+                error_message = f"Error executing query: {str(e)}"
+                inputs.append({
+                    "type": "function_call_output",
+                    "call_id": tool_call.call_id,
+                    "output": error_message
+                })
 
     def close(self):
         del self.sess
