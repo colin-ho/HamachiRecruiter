@@ -94,9 +94,9 @@ class QueryAnalyzer:
         - The output schema should always be in this order: [author_name, author_email, commit_count, impact_to_project, technical_ability, languages, keywords, repo, reason, first_commit, last_commit, lines_modified]
         - Keep the SQL query as simple as possible and avoid complex syntax
         - Avoid use of the `ANY` operator
-        - When comparing dates, cast string literals to timestamps using CAST('2024-01-01' AS TIMESTAMP) format
+        - When comparing dates, cast string literals to dates using CAST('2024-01-01' AS DATE) format
         - Use >= for "after" or "since" comparisons and <= for "before" comparisons
-        - For date ranges, use BETWEEN CAST('2024-01-01' AS TIMESTAMP) AND CAST('2024-12-31' AS TIMESTAMP)
+        - For date ranges, use BETWEEN CAST('2024-01-01' AS DATE) AND CAST('2024-12-31' AS DATE)
         - Unless specified otherwise, order results by technical_ability DESC, impact_to_project DESC, commit_count DESC
         - For pipe-separated fields, use appropriate pattern matching techniques
         - When searching for keywords, take note that keywords are hyphenated if keywords are compound words.

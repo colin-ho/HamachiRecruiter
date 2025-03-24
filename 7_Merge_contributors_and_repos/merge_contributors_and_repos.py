@@ -1,6 +1,25 @@
 import argparse
+from collections import defaultdict
 import daft
 from daft import col
+
+# map all emails to all emails they are related to
+def generate_email_mapping(df: daft.DataFrame) -> dict[str, set[str]]:
+    email_mapping = defaultdict(set)
+
+    for row in df.iter_rows():
+        emails = row['author_email'].split("|")
+        for i in range(len(emails)):
+            for j in range(len(emails)):
+                email_mapping[emails[i]].add(emails[j])
+
+    for k, v in email_mapping.items():
+        v2 = set(v)
+        for email in v:
+            for email2 in email_mapping[email]:
+                v2.add(email2)
+        email_mapping[k] = v2
+    return email_mapping
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -32,7 +51,6 @@ if __name__ == "__main__":
     # Deduplicate and aggregate contributor data by name
     contributors_dedupped = contributors.groupby('repo_owner', 'repo_name', col('author_name')).agg(
         col('author_email').agg_list(),
-        col('author_email').count().alias('email_count'),
         col('commit_count').sum(),
         col('lines_added').sum(),
         col('lines_deleted').sum(),
@@ -43,14 +61,34 @@ if __name__ == "__main__":
         (col('technical_ability') * col('commit_count')).sum().alias('technical_ability_sum'),
         col('reason').agg_list()
     ).with_columns(dict(
-        author_email=col('author_email').list.sort().list.join(delimiter='|'),
+        author_email=col('author_email').list.join(delimiter='|'),
         impact_to_project=col('impact_to_project_sum') / col('commit_count'),
         technical_ability=col('technical_ability_sum') / col('commit_count'),
         reason=col('reason').list.join(delimiter='\n'),
     )).exclude('impact_to_project_sum', 'technical_ability_sum')
 
+    email_mapping = generate_email_mapping(contributors_dedupped)
+
+    @daft.udf(return_dtype=daft.DataType.list(daft.DataType.string()))
+    def extract_email_mapping(emails_series) -> list[str]:
+        res = []
+        for emails in emails_series:
+            emails = emails.split("|")
+            all_emails = []
+            for email in emails:
+                all_emails.extend(email_mapping[email])
+            res.append(all_emails)
+        return res
+    
+    contributors_consolidated_emails = contributors_dedupped.with_column(
+        'author_email', extract_email_mapping(daft.col('author_email')).list.distinct().list.sort()
+    ).with_columns(dict(
+        email_count=daft.col('author_email').list.len(),
+        author_email=daft.col('author_email').list.join(delimiter='|'),
+    ))
+
     # Filter out any contributors with more than 15 emails (typically bots)
-    contributors_dedupped = contributors_dedupped.where('email_count <= 15')
+    contributors_dedupped = contributors_consolidated_emails.where('email_count <= 15')
     
     # Step 2: Process repos data
     repos = daft.read_parquet(args.input_repos_path).exclude('readme', 'reason').with_columns(dict(
