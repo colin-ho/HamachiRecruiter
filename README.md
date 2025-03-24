@@ -14,44 +14,45 @@ The data pipeline is organized into sequential steps, each implemented as a sepa
 
 2. **Extract READMEs** (`2_Extract_readmes/`): Clones repositories and extracts their README files to understand project purposes.
 
-3. **Extract Repository Info** (`3_Extract_repo_info/`): Gathers detailed information about each repository, including languages used, size, and other metadata.
+3. **Analyze Repos** (`3_Analyze_repos/`): Generate detailed information about each repository, including languages used, keywords, project types, etc.
 
 4. **Extract Commits** (`4_Extract_commits/`): Clones repositories and parses the git logs to extract commit messages, dates, and changes.
 
 5. **Extract Contributors** (`5_Extract_contributors/`): Aggregates commit data to identify contributors and their contribution patterns.
 
-6. **Analyze Contributors** (`6_Analyze_contributors/`): Processes contributor data to extract insights about skills, experience, and contribution patterns across repositories.
+6. **Analyze Contributors** (`6_Analyze_contributors/`): Processes contributor data based on their commit messages, lines changed, frequency of commits.
 
 7. **Merge Contributors and Repos** (`7_Merge_contributors_and_repos/`): Merge the contributor data and repo data to produce a curated dataset for Hamachi Recruiter.
 
-## Requirements
+### How to run
 
-- Python 3.8+
-- Daft
-- GitHub API token
-- Git
+This project is packaged with uv, all you need is uv and the api keys to do search/inference.
 
-## Setup
+#### Requirements
 
-1. Clone this repository:
-   ```
-   git clone https://github.com/your-username/hamachi-recruiter.git
-   cd hamachi-recruiter
-   ```
+- uv
+- GitHub API key
+- OpenAI API key
 
-2. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+#### Example usage
 
-3. Create a `.env` file in the project root with your GitHub token:
-   ```
-   GITHUB_TOKEN=your_github_token_here
-   ```
+```
+uv run 1_Search_for_repos/search_for_repos.py
+```
 
-4. Run each step sequentially in the data pipeline.
+## Web App
 
-## Running the Web App
+The Hamachi Recruiter web app comprises of a FastAPI backend and Vite frontend.
 
-After processing the data, you can run the web application in `hamachi_app`
+### Backend
+
+```
+uvicorn hamachi_app.backend.backend:app --reloa
+```
+
+### Frontend
+
+```
+npm run dev
+```
 
