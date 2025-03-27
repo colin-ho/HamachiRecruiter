@@ -23,4 +23,5 @@ dependencies = [
     "uvicorn==0.34.0",
     "slowapi==0.1.9",
     "pypandoc-binary==1.15",
+    "pydantic-to-pyarrow==0.1.6",
 ]
