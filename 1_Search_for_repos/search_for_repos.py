@@ -62,7 +62,7 @@ def get_repo_data(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--runner", type=str, default="native")
-    parser.add_argument("--keywords", type=str, default="sashimi")
+    parser.add_argument("--keywords", type=str, default="language:rust")
     parser.add_argument("--limit", type=str, default="10")
     parser.add_argument("--write-to-file", action="store_true")
     parser.add_argument("--output-path", type=str, default="repo_data_files")

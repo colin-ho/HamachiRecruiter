@@ -1,8 +1,3 @@
-# /// script
-# [tools.ev]
-# env_vars = { OPENAI_API_KEY = ""}
-# ///
-
 import argparse
 import daft
 import instructor
@@ -35,7 +30,6 @@ def analyze_commit(
     repo_name, commit_count, lines_added, lines_deleted, lines_modified, files_changed, message,
 ):
     client = instructor.from_openai(AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY")))
-
     async def analyze_single_commit(client, repo, c, la, ld, lm, f, msg):
         msg = "\n".join(msg.split("\n")[:500])
         msg = " ".join(msg.split()[:10000])
@@ -72,13 +66,14 @@ def analyze_commit(
         ):
             async with asyncio.Semaphore(64):
                 tasks.append(analyze_single_commit(client, repo, c, la, ld, lm, f, msg))
+        print(f"Running {len(tasks)} tasks")
         return await asyncio.gather(*tasks)
     
     return asyncio.run(run_tasks())
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input-path", type=str, default="s3://eventual-data-test-bucket/HamachiRecruiterData/contributer_raw2")
+    parser.add_argument("--input-path", type=str, default="s3://eventual-data-test-bucket/HamachiRecruiterData/contributer_raw2/805f684e-5a9e-4489-9a6e-38e56955fe29-8.parquet")
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--write-to-file", action="store_true")
     parser.add_argument("--output-path", type=str, default="analyzed_contributors")

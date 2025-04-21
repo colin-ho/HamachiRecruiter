@@ -313,20 +313,20 @@ wheels = [
 
 [[package]]
 name = "daft"
-version = "0.4.8"
+version = "0.4.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fsspec" },
     { name = "pyarrow" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/41/57/cefbcd5ef5da2979f6f0652f0349508f22b7fad03443a2c4266774c572c1/daft-0.4.8.tar.gz", hash = "sha256:35644d7e82dcf58cf40bc9a657e4b19f357fbaec3886e4c03ce4cb0b61fb0ccf", size = 4749169 }
+sdist = { url = "https://files.pythonhosted.org/packages/2b/28/557544b14eececb37acbf1811d2dd0a91d53a684e49d0c6cc6f4d2db9449/daft-0.4.10.tar.gz", hash = "sha256:6f407201d597f809627816353e98f7cb331e3b153a252d00a323ced92a0c258b", size = 4811698 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/1a/8b0e2051af35523ad67472971262fbc3edb66771dd32d1f6d4a6f8164096/daft-0.4.8-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:b5ed66d43b308b67769c0d9d55bef1fa7588a2cbc9603d38097d4e91b082148b", size = 35215485 },
-    { url = "https://files.pythonhosted.org/packages/1c/3a/96a4739977ba975debd534af325832d6b8ad69e1d82120f09b02df2ee383/daft-0.4.8-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:f8bda4d4d5dbf034d25950295f0d58c9e8e16075adff047789934af609381428", size = 32549165 },
-    { url = "https://files.pythonhosted.org/packages/4b/b5/d3c3eba629b8f77988ee1a7d323e3c27922bc1c5c09280a58cbe69b85eb0/daft-0.4.8-cp39-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:1d10c4553d45a65e7d5beb05437eed924ba1eb615af4a29e3b2554d4ecb2afbc", size = 35900567 },
-    { url = "https://files.pythonhosted.org/packages/94/ed/6b84555a1ba87fb2661c709f4fa3c57a4cfe57740f0298b2152b31aca89d/daft-0.4.8-cp39-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:e8ece6aecc45f67c5d819359592f7393da2bb1d8224d36ed17a57e6469d15d21", size = 37677586 },
-    { url = "https://files.pythonhosted.org/packages/41/32/c97ec7ff83cdf9698c5af11cb05baceaa1e92865bdd3d37302333c7a1368/daft-0.4.8-cp39-abi3-win_amd64.whl", hash = "sha256:56a43e6858a36afa2d3baaa8a0960f00c64ae114711bd44ca44664801f1fcffc", size = 34419373 },
+    { url = "https://files.pythonhosted.org/packages/09/cc/44c4c628025845b27e30100c99ef6436bcd7634b47b92b58f5c697d7e17c/daft-0.4.10-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:2b3525e780855fb81da7b4cd290bd185308544d26c3be62a062a23b9903b58fc", size = 36148965 },
+    { url = "https://files.pythonhosted.org/packages/96/d4/ede062304046891275f70decf6e2e1be3510d626ac4891f57e2b1f663269/daft-0.4.10-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:ce10318d4d26319717614a41d0f502ff387f543c5c0d85ac5507b8df9e73339a", size = 33426322 },
+    { url = "https://files.pythonhosted.org/packages/bb/48/2e9a7eaa2797d45a548257ad7af8605566ac642da79cecbd10ca3492583c/daft-0.4.10-cp39-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:8816d35e4ef6be6f08d38d0e2d5d4490fdea857252961bab2c1d8b707ff86f6c", size = 36758826 },
+    { url = "https://files.pythonhosted.org/packages/8d/55/e6ab78f1163b4e57e0459fc21d7c8885218611cdf9d5d9ed495df51664eb/daft-0.4.10-cp39-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:455e5b21adce545a0334940409a8173ab83054c0eea211ff19975e43a1800545", size = 38589110 },
+    { url = "https://files.pythonhosted.org/packages/0c/3f/52a6191c294f90c2864cae8ed7f2403f00bc41f5c2a6e05b78d2ff8b9b4a/daft-0.4.10-cp39-abi3-win_amd64.whl", hash = "sha256:8c5883ea972f2685602cf86b51ee9bc09ddf1a52ba6133096527145cc1a6ef4a", size = 35365640 },
 ]
 
 [[package]]
@@ -546,7 +546,7 @@ dependencies = [
 requires-dist = [
     { name = "anthropic", extras = ["bedrock"], specifier = ">=0.49.0" },
     { name = "boto3", specifier = ">=1.37.11" },
-    { name = "daft", specifier = "==0.4.8" },
+    { name = "daft", specifier = "==0.4.10" },
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "fastapi", specifier = ">=0.115.11" },
     { name = "fireworks-ai", specifier = ">=0.15.12" },
