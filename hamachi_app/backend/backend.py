@@ -75,7 +75,7 @@ async def search(request: Request, background_tasks: BackgroundTasks, q: Optiona
             background_tasks.add_task(log_to_google_sheet, [q, "Failed", sql_query, num_results, error, num_tries, total_time])
             raise HTTPException(status_code=500, detail=error)
         
-        print(f"Result: {results}, Sql Query: {sql_query}, Num Results: {num_results}, Total Time: {total_time}")
+        print(f"Sql Query: {sql_query}, Num Results: {num_results}, Total Time: {total_time}")
         # Log successful query
         background_tasks.add_task(log_to_google_sheet, [q, "Success", sql_query, num_results, "None", num_tries, total_time])
         
