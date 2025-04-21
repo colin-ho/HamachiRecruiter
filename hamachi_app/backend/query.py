@@ -124,14 +124,11 @@ class QueryAnalyzer:
                 args = json.loads(tool_call.arguments)
                 
                 sql_query = args.get("sql_query")
-                print("SQL query: ", sql_query)
                 result = execute_sql_query(sql_query)
                 
                 if len(result) == 0:
-                    print("No results found")
                     raise Exception("No results found")
                 
-                print(f"{len(result)} results found")
                 return result, sql_query, len(result), None, 3 - num_tries_remaining
             
             except Exception as e:
