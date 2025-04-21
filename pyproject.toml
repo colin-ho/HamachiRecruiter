@@ -24,4 +24,6 @@ dependencies = [
     "slowapi>=0.1.9",
     "pypandoc-binary>=1.15",
     "pydantic-to-pyarrow>=0.1.6",
+    "gspread>=6.2.0",
+    "oauth2client>=4.1.3",
 ]

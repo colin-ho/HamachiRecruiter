@@ -11,7 +11,7 @@ class QueryAnalyzer:
         key = os.environ.get("OPENAI_API_KEY")
         self.client = OpenAI(api_key=key)
         
-        data_dir = os.environ.get("HAMACHI_DATA_DIR", "contributors4")   
+        data_dir = os.environ.get("HAMACHI_DATA_DIR", "final")   
 
         df = daft.read_parquet(data_dir, io_config=daft.io.IOConfig(s3=daft.io.S3Config(anonymous=True, region_name="us-west-2")))
         df = df.where(~daft.col('author_email').str.contains('[bot]') & ~daft.col('author_email').str.contains('@github.com')).collect()
@@ -132,13 +132,13 @@ class QueryAnalyzer:
                     raise Exception("No results found")
                 
                 print(f"{len(result)} results found")
-                return result
+                return result, sql_query, len(result), None, 3 - num_tries_remaining
             
             except Exception as e:
                 print("Error executing query: ", e, " num_tries_remaining: ", num_tries_remaining)
                 if num_tries_remaining == 0:
                     if "No results found" in str(e):
-                        return []
+                        return [], sql_query, 0, "No results found", 3 - num_tries_remaining
                     else:
                         raise Exception(f"Error executing query: {str(e)}")
                 else:
@@ -164,8 +164,12 @@ if __name__ == "__main__":
         if query.lower() == 'quit':
             break
             
-        result = analyzer.natural_language_query(query)
+        result, sql_query, num_results, error = analyzer.natural_language_query(query)
         print("\nResult:")
         print(result)
+        print("SQL query: ", sql_query)
+        print("Number of results: ", num_results)
+        if error:
+            print("Error: ", error)
 
     analyzer.close()

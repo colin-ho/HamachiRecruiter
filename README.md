@@ -47,7 +47,7 @@ The Hamachi Recruiter web app comprises of a FastAPI backend and Vite frontend.
 ### Backend
 
 ```
-uvicorn hamachi_app.backend.backend:app --reloa
+uvicorn hamachi_app.backend.backend:app --reload
 ```
 
 ### Frontend
