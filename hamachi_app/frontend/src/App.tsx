@@ -9,6 +9,7 @@ function App() {
   const [developers, setDevelopers] = useState<Developer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showBanner, setShowBanner] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +31,7 @@ function App() {
       }
       else {
         setDevelopers(data);
+        setShowBanner(true);
       }
     } catch (err) {
       setError('Failed to fetch developers. Please try again.');
@@ -40,32 +42,41 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center">
-          <img
-            src={hami}
-            alt="Developer Search Logo"
-            className="mx-auto mb-8 h-48 w-auto"
-          />
-          <h1 className="text-4xl font-bold text-gray-900 mb-8">
-            Who do you want to hire?
-          </h1>
+    <div className="min-h-screen bg-gray-50">
+      {showBanner && (
+        <div className="bg-blue-100 text-blue-800 p-4">
+          <div className="max-w-7xl mx-auto text-center">
+            Learn how we built this: <a href="https://www.getdaft.io/" className="underline">https://www.getdaft.io/</a>
+          </div>
+        </div>
+      )}
+      <div className="py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center">
+            <img
+              src={hami}
+              alt="Developer Search Logo"
+              className="mx-auto mb-8 h-48 w-auto"
+            />
+            <h1 className="text-4xl font-bold text-gray-900 mb-8">
+              Who do you want to hire?
+            </h1>
 
-          <SearchForm
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            handleSearch={handleSearch}
-            isLoading={isLoading}
-          />
+            <SearchForm
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              handleSearch={handleSearch}
+              isLoading={isLoading}
+            />
 
-          {error && (
-            <div className="text-red-600 mb-4">
-              {error}
-            </div>
-          )}
+            {error && (
+              <div className="text-red-600 mb-4">
+                {error}
+              </div>
+            )}
 
-          {developers.length > 0 && <DeveloperTable developers={developers} />}
+            {developers.length > 0 && <DeveloperTable developers={developers} />}
+          </div>
         </div>
       </div>
     </div>

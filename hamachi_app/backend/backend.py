@@ -23,12 +23,15 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Add CORS middleware
 PRODUCTION = os.getenv("RENDER", False)
 
+print(f"PRODUCTION: {PRODUCTION}")
 if PRODUCTION:
+    print("PRODUCTION")
     origins = [
         "https://www.sashimi4talent.com",
         "https://hamachirecruiterfrontend.onrender.com",
     ]
 else:
+    print("NOT PRODUCTION")
     origins = [
         "http://localhost:3000",
         "http://localhost:5173",
