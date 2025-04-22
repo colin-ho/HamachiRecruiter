@@ -9,7 +9,6 @@ function App() {
   const [developers, setDevelopers] = useState<Developer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showBanner, setShowBanner] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +30,6 @@ function App() {
       }
       else {
         setDevelopers(data);
-        setShowBanner(true);
       }
     } catch (err) {
       setError('Failed to fetch developers. Please try again.');
@@ -43,13 +41,11 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {showBanner && (
-        <div className="bg-blue-100 text-blue-800 p-4">
-          <div className="max-w-7xl mx-auto text-center">
-            Learn how we built this: <a href="https://www.getdaft.io/" className="underline">https://www.getdaft.io/</a>
-          </div>
+      <div className="bg-blue-100 text-blue-800 p-4">
+        <div className="max-w-7xl mx-auto text-center">
+          See how we built this: <a href="https://www.getdaft.io/" className="underline">https://www.getdaft.io/</a>
         </div>
-      )}
+      </div>
       <div className="py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center">
