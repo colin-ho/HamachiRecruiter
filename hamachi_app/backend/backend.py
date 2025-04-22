@@ -20,24 +20,14 @@ app = FastAPI(title="Hamachi Recruiter API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Add CORS middleware
-PRODUCTION = os.getenv("RENDER", False)
-
-print(f"PRODUCTION: {PRODUCTION}")
-if PRODUCTION:
-    print("PRODUCTION")
-    origins = [
-        "https://www.sashimi4talent.com",
-        "https://hamachirecruiterfrontend.onrender.com",
-    ]
-else:
-    print("NOT PRODUCTION")
-    origins = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-    ]
+origins = [
+    "https://www.sashimi4talent.com",
+    "https://hamachirecruiterfrontend.onrender.com",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+]
 
 app.add_middleware(
     CORSMiddleware,
@@ -46,6 +36,7 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
 
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds = ServiceAccountCredentials.from_json_keyfile_name('google_sheet_credentials.json', scope)
