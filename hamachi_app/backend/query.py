@@ -4,51 +4,67 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from daft import col
 import json
+import duckdb
+
 load_dotenv()
 
+MAX_NUM_TRIES = 5
+
 class QueryAnalyzer:
-    def __init__(self):
+    def __init__(self, use_duckdb=True):
         key = os.environ.get("OPENAI_API_KEY")
         self.client = OpenAI(api_key=key)
         
         data_dir = os.environ.get("HAMACHI_DATA_DIR", "final")   
 
-        df = daft.read_parquet(data_dir, io_config=daft.io.IOConfig(s3=daft.io.S3Config(anonymous=True, region_name="us-west-2")))
-        df = df.where(~daft.col('author_email').str.contains('[bot]') & ~daft.col('author_email').str.contains('@github.com')).collect()
-        
-        self.sess = daft.Session()
-        self.sess.create_temp_table("contributions", df)
+        self.use_duckdb = use_duckdb
+        if self.use_duckdb:
+            df = daft.read_parquet(data_dir, io_config=daft.io.IOConfig(s3=daft.io.S3Config(anonymous=True, region_name="us-west-2"))).to_arrow()
+            self.conn = duckdb.connect()
+            self.conn.execute("CREATE TABLE contributions AS SELECT * FROM df")
+            del df
+        else:
+            df = daft.read_parquet(data_dir, io_config=daft.io.IOConfig(s3=daft.io.S3Config(anonymous=True, region_name="us-west-2")))
+            df = df.where(~daft.col('author_email').str.contains('[bot]') & ~daft.col('author_email').str.contains('@github.com')).collect()
+            
+            self.sess = daft.Session()
+            self.sess.create_temp_table("contributions", df)
 
-        # self.conn = duckdb.connect()
-        # self.conn.execute("CREATE TABLE contributions AS SELECT * FROM read_parquet('data/demo-analyzed-data-10k-v2/716ae28b-bfbb-4fcb-ba34-76daa2777df5-0.parquet')")
+    def execute_sql_query(self, sql_query: str):
+        if self.use_duckdb:
+            result_arrow = self.conn.execute(sql_query).fetch_arrow_table()
+            result = daft.from_arrow(result_arrow)
+        else:
+            result = self.sess.sql(sql_query)
+        
+        result_with_struct = result.with_column(
+            "repo", daft.struct(
+                col("commit_count"),
+                col("impact_to_project"),
+                col("technical_ability"), 
+                col("repo"),
+                col("first_commit").cast(daft.DataType.string()),
+                col("last_commit").cast(daft.DataType.string()),
+                col("lines_modified")
+            )
+        )
+        
+        result_dedupped = result_with_struct.groupby('author_email').agg(
+            daft.col('author_name').any_value(),
+            daft.col('languages').any_value(),
+            daft.col('keywords').any_value(),
+            daft.col('commit_count').sum(),
+            daft.col('impact_to_project').mean(),
+            daft.col('technical_ability').mean(),
+            daft.col('reason').agg_list(),
+            daft.col('repo').agg_list(),
+        ).sort(by=['technical_ability', 'impact_to_project', 'commit_count'], desc=[True, True, True]).limit(100)
+        
+        return result_dedupped.to_pylist()
 
     def natural_language_query(self, query: str):
         def execute_sql_query(sql_query: str):
-            result = self.sess.sql(sql_query)
-            result_with_struct = result.with_column(
-                "repo", daft.struct(
-                    col("commit_count"),
-                    col("impact_to_project"),
-                    col("technical_ability"), 
-                    col("repo"),
-                    col("first_commit").cast(daft.DataType.string()),
-                    col("last_commit").cast(daft.DataType.string()),
-                    col("lines_modified")
-                )
-            )
-            
-            result_dedupped = result_with_struct.groupby('author_email').agg(
-                daft.col('author_name').any_value(),
-                daft.col('languages').any_value(),
-                daft.col('keywords').any_value(),
-                daft.col('commit_count').sum(),
-                daft.col('impact_to_project').mean(),
-                daft.col('technical_ability').mean(),
-                daft.col('reason').agg_list(),
-                daft.col('repo').agg_list(),
-            ).sort(by=['technical_ability', 'impact_to_project', 'commit_count'], desc=[True, True, True]).limit(100)
-            
-            return result_dedupped.to_pylist()
+            return self.execute_sql_query(sql_query)
         
         # Define the agent's tools
         tools = [
@@ -70,9 +86,23 @@ class QueryAnalyzer:
                 }
             }
         ]
+
+        guidelines = """
+        SQL Query Guidelines:
+        - Keep the SQL query as simple as possible and avoid complex syntax
+        - When comparing dates, cast string literals to dates using CAST('2024-01-01' AS DATE) format
+        - Use >= for "after" or "since" comparisons and <= for "before" comparisons
+        - For date ranges, use BETWEEN CAST('2024-01-01' AS DATE) AND CAST('2024-12-31' AS DATE)
+        - Unless specified otherwise, order results by technical_ability DESC, impact_to_project DESC, commit_count DESC
+        - For pipe-separated fields, use appropriate pattern matching techniques
+        - When searching for keywords, take note that keywords are hyphenated if keywords are compound words.
+        - Note that the repo is in the format of owner/repo. This means that you can use the LIKE operator to search for repos by owner or repo name.
+        - When adding filters on string columns i.e. author_name, author_email, repo, make sure to lowercase the column.
+        - The output schema must be in this order: [author_name, author_email, commit_count, impact_to_project, technical_ability, languages, keywords, repo, reason, first_commit, last_commit, lines_modified]
+        """
         
         # Define the agent's system prompt
-        system_prompt = """You are an AI assistant that helps users find information about open source contributors.
+        system_prompt = f"""You are an AI assistant that helps users find information about open source contributors.
         You have access to a database with a table called 'contributions' that contains the following columns:
         - author_email: string (lowercase). The email address of the contributor.
         - author_name: string (lowercase). The name of the contributor.
@@ -90,23 +120,14 @@ class QueryAnalyzer:
         - keywords: string (multiple values separated by '|', all values are lowercase and normalized, hyphenated if keywords are compound words). The keywords associated with the project, such as the domain of the project, the purpose of the project, frameworks and libraries used, etc.
         - repo: string (case sensitive, in the format of owner/repo). The repository the contributor has worked on.
 
-        When creating SQL queries:
-        - The output schema should always be in this order: [author_name, author_email, commit_count, impact_to_project, technical_ability, languages, keywords, repo, reason, first_commit, last_commit, lines_modified]
-        - Keep the SQL query as simple as possible and avoid complex syntax
-        - Avoid use of the `ANY` operator
-        - When comparing dates, cast string literals to dates using CAST('2024-01-01' AS DATE) format
-        - Use >= for "after" or "since" comparisons and <= for "before" comparisons
-        - For date ranges, use BETWEEN CAST('2024-01-01' AS DATE) AND CAST('2024-12-31' AS DATE)
-        - Unless specified otherwise, order results by technical_ability DESC, impact_to_project DESC, commit_count DESC
-        - For pipe-separated fields, use appropriate pattern matching techniques
-        - When searching for keywords, take note that keywords are hyphenated if keywords are compound words.
-        - Note that the repo is in the format of owner/repo. This means that you can use the LIKE operator to search for repos by owner or repo name.
-        - When adding filters on string columns i.e. author_name, author_email, repo, make sure to lowercase the column.
+        Your job is to generate a SQL query to answer the user's question. Follow these guidelines:
+
+        {guidelines}
         
         You must use the execute_sql_query function to answer user questions.
         """
 
-        num_tries_remaining = 3
+        num_tries_remaining = MAX_NUM_TRIES
         inputs = [{"role": "user", "content": query}]
         tool_call = None
         while True:
@@ -129,18 +150,20 @@ class QueryAnalyzer:
                 if len(result) == 0:
                     raise Exception("No results found")
                 
-                return result, sql_query, len(result), None, 3 - num_tries_remaining
+                return result, sql_query, len(result), None, MAX_NUM_TRIES - num_tries_remaining
             
             except Exception as e:
-                print("Error executing query: ", e, " num_tries_remaining: ", num_tries_remaining)
+                print(f"Error {e} executing query {sql_query}, num_tries_remaining: {num_tries_remaining}")
                 if num_tries_remaining == 0:
                     if "No results found" in str(e):
-                        return [], sql_query, 0, "No results found", 3 - num_tries_remaining
+                        return [], sql_query, 0, "No results found", MAX_NUM_TRIES - num_tries_remaining
                     else:
                         raise Exception(f"Error executing query: {str(e)}")
                 else:
                     num_tries_remaining -= 1
-                error_message = f"Error executing query: {str(e)}"
+                error_message = f"Error executing query: {str(e)}. Please generate a different SQL query."
+                if "DaftError::FieldNotFound" in str(e):
+                    error_message = f"Please make sure that the output schema of the query is in the correct order: [author_name, author_email, commit_count, impact_to_project, technical_ability, languages, keywords, repo, reason, first_commit, last_commit, lines_modified]. ALL COLUMNS MUST BE PRESENT."
                 inputs.append({
                     "type": "function_call_output",
                     "call_id": tool_call.call_id,
