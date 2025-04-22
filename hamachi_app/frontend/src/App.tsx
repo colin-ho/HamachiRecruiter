@@ -43,7 +43,7 @@ function App() {
     <div className="min-h-screen bg-gray-50">
       <div className="bg-blue-100 text-blue-800 p-4">
         <div className="max-w-7xl mx-auto text-center">
-          See how we built this: <a href="https://www.getdaft.io/" className="underline">https://www.getdaft.io/</a>
+          See how we built this: <a href="https://blog.getdaft.io/p/we-cloned-over-15000-repos-to-find" className="underline">https://blog.getdaft.io/p/we-cloned-over-15000-repos-to-find</a>
         </div>
       </div>
       <div className="py-12 px-4 sm:px-6 lg:px-8">
