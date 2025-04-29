@@ -1,6 +1,6 @@
-# Hamachi Recruiter
+# Sashimi 4 Talent
 
-Hamachi Recruiter is a tool designed to search for contributors across GitHub repositories.
+Sashimi 4 Talent is a tool designed to search for contributors across GitHub repositories.
 
 ## Overview
 
@@ -42,7 +42,7 @@ uv run 1_Search_for_repos/search_for_repos.py
 
 ## Web App
 
-The Hamachi Recruiter web app comprises of a FastAPI backend and Vite frontend.
+The sashimi 4 talent web app comprises of a FastAPI backend and Vite frontend.
 
 ### Backend
 
